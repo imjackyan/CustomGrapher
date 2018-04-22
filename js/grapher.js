@@ -60,6 +60,10 @@ function Graph(div_id){
 				default:
 					break;
 			}
+			g.plotoffset = {
+				x:0,
+				y:(this.height / this.graphs.length * i)
+			}
 			this.graphs[i] = g;
 		}
 	}
@@ -138,7 +142,7 @@ function sdAbsGraph(div_id, id){
 		this.height = this.div.getBoundingClientRect().height;
 
 		this.platform = Stardust.platform("webgl-2d", this.canvas, this.width, this.height);
-		this.svg = d3.select("#"+this.div_id).append("svg").attr("id", "svg-" + this.id)
+		this.svg = d3.select("#"+this.div_id).append("svg").attr("id", "subplot-svg-" + this.id)
 			.attr("width", this.width).attr("height", this.height)
 			.style("position", "absolute").style("top", 0).style("left", 0);
 
@@ -349,7 +353,7 @@ function sdLine(div_id, id){
 			this.mouse_g_node.attr("opacity", 0);
 		})
 		.on("mousemove", ()=>{
-			var pt = {x:d3.event.layerX, y:d3.event.layerX};
+			var pt = {x:d3.event.layerX, y:d3.event.layerY};
 			this.mouse_g_line.attr("transform", "translate(" + (pt.x) +","+this.grapharea.top+")")
 			this.renderTooltip(pt);
 		})
@@ -375,6 +379,7 @@ function sdLine(div_id, id){
 					return "translate(-10,-10)";
 				}
 				d.hovering = pt;
+				d.hovering.index = x_index;
 				return "translate("+pt.x+","+pt.y+")";
 			});
 		}
@@ -545,19 +550,14 @@ function sdGantt(div_id, id){
 	}
 
 	this.setMouseEffects = function(){
-		return;
+		// return;
 		this.mouse_g = this.svg.append("g").attr("class", "mouse-over-effects");
-		this.mouse_g_line = this.mouse_g.append("line").attr("x2", 0).attr("y2", this.grapharea.height)
-			.attr("stroke", "grey").attr("stroke-width", 2).attr("opacity", 0);
 
 		this.mouse_g_node = this.mouse_g.selectAll(".mouse-over-node")
 			.data(this.dataset)
 			.enter()
 			.append("g")
 			.attr("class", "mouse-over-node").attr("opacity", 0);
-		this.mouse_g_node.append("circle")
-			.attr("r", 7).style("stroke", (d,i) => this.arrToRGB(this.colors[i]))
-			.style("fill", "none").style("stroke-width", this.graphprop.tipstrokewidth);
 
 		this.mouse_g_rect = this.mouse_g.append("svg:rect").attr("opacity", 0)
 			.attr("width", this.grapharea.width).attr("height", this.grapharea.height)
@@ -566,35 +566,43 @@ function sdGantt(div_id, id){
 		this.mouse_g_rect
 		.on("mouseover", ()=>{
 			var pt = {x:d3.event.layerX, y:d3.event.layerX};
-			this.mouse_g_line.attr("opacity", 1);
 			this.mouse_g_node.attr("opacity", 1);
 		})
 		.on("mouseleave", ()=>{
-			this.mouse_g_line.attr("opacity", 0);
 			this.mouse_g_node.attr("opacity", 0);
 		})
 		.on("mousemove", ()=>{
-			var pt = {x:d3.event.layerX, y:d3.event.layerX};
-			this.mouse_g_line.attr("transform", "translate(" + (pt.x) +","+this.grapharea.top+")")
+			var pt = {x:d3.event.layerX, y:d3.event.layerY};
 			this.renderTooltip(pt);
+		})
+		.on("click", ()=>{
+			print(this.hovering);
 		})
 	}
 
 	this.renderTooltip = function(mouse_pos){
-		if(this.mouse_g_node){
-			this.mouse_g_node.attr("transform", (d, i)=>{
-				var x_index = this.xScale.invert(mouse_pos.x);
-				x_index = this.bisect(d.data, x_index);
+		if(this.mouse_g){		
+			var h = this.grapharea.height / this.dataset.length;
+			for(var i = 0; i < this.dataset.length; i++) {
+				var d = this.dataset[i];
+				if(mouse_pos.y > i * h && mouse_pos.y < (i+1)*h){
+					var x_index = this.xScale.invert(mouse_pos.x);
+					x_index = this.bisect(d.data, x_index);
+					x_index -= 2;
+					x_index = x_index < 0 ? 0 : x_index;
 
-				x_index = x_index >= d.data.length ? d.data.length-1 : x_index;
-				var v = d.data[x_index];
-				var pt = {x:this.xScale(v.x), y:this.yScale(v.y)};
-
-				if(pt.x > this.grapharea.left + this.grapharea.width || pt.x < this.grapharea.left){
-					return "translate(-10,-10)";
+					this.hovering = false;
+					for(var j = x_index; j < x_index + 3; j++){
+						if(j < d.data.length){
+							var v = d.data[j];
+							var pt = {start:this.xScale(v.start), end:this.xScale(v.end)};
+							if(mouse_pos.x > pt.start && mouse_pos.x < pt.end){
+								this.hovering = v;
+							}
+						}
+					}
 				}
-				return "translate("+pt.x+","+pt.y+")";
-			});
+			}
 		}
 	}
 
@@ -626,12 +634,12 @@ function sdGantt(div_id, id){
 	this.renderYAxis = function(){
 		this.yScale
 			.domain(this.categories)
-			.rangeBands([this.grapharea.top + this.grapharea.height, this.grapharea.top]);
+			.rangeBands([this.grapharea.top, this.grapharea.top + this.grapharea.height]);
 		this.yAxisGroup.call(this.yAxis)
 			.attr("transform", "translate("+this.grapharea.left+",0)");
 	}
 
-	this.bisect = d3.bisector(function(d) { return d.x; }).right;
+	this.bisect = d3.bisector(function(d) { return d.start; }).right;
 	this.arrToRGB = this.super.arrToRGB;
 	this.clrArrToDecimal = this.super.clrArrToDecimal;
 	this.withinGrapharea = this.super.withinGrapharea;
