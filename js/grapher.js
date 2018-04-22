@@ -132,11 +132,18 @@ function Graph(div_id){
 		}
 	}
 
+	this.resizeGraphs = function(){
+		this.graphs.forEach((g, i) => {
+			var id = this.div_id + "-" + i;
+			g.resizeGraph(id, i);
+		});
+	}
+
 	this.constructor();
 }
 
 function sdAbsGraph(div_id, id){
-	this.constructor = function(){
+	this.constructor = function(div_id, id){
 		// Basic graph info
 		this.id = id == undefined ? 0 : id;
 		this.div_id = div_id+"-subgraph-"+this.id;
@@ -217,12 +224,12 @@ function sdAbsGraph(div_id, id){
 		return x > this.grapharea.left && x < (this.grapharea.left + this.grapharea.width) && y > this.grapharea.top && y < (this.grapharea.top + this.grapharea.height);
 	}
 
-	this.constructor();
+	this.constructor(div_id, id);
 }
 
 function sdLine(div_id, id){
 	this.super = new sdAbsGraph(div_id, id);
-	this.consturctor = function(){
+	this.consturctor = function(div_id, id){
 		this.id = this.super.id;
 		this.div_id = this.super.div_id;
 		this.div = this.super.div;
@@ -234,17 +241,21 @@ function sdLine(div_id, id){
 		this.platform = this.super.platform;
 		this.svg = this.super.svg;
 
-		this.dataset = [];
+		this.dataset = this.dataset == undefined ? [] : this.dataset;
 
 		// some prop		
-		this.shrinkY = true;
+		this.shrinkY = this.shrinkY == undefined ? true : this.shrinkY;
 
-		this.dataprop = this.super.dataprop; 
-		this.grapharea = this.super.grapharea; 
-		this.graphprop = this.super.graphprop; 
+		this.dataprop = this.dataprop == undefined ? this.super.dataprop : this.dataprop; 
+		this.grapharea = this.grapharea == undefined ? this.super.grapharea : this.grapharea; 
+		this.graphprop = this.graphprop == undefined ? this.super.graphprop : this.graphprop;
 		this.colors = this.super.colors;
 
-		this.setGraphMargin(100,50,100,100);
+		// Set up white blocks for blocking excess graph
+		this.frames = this.super.frames;
+		this.frame_dim = this.super.frame_dim;
+
+		this.setGraphMargin(this.grapharea.top, this.grapharea.right, this.grapharea.bottom, this.grapharea.left);
 
 		// Set up axis scaling
 		this.xScale = d3.scale.linear();
@@ -253,11 +264,6 @@ function sdLine(div_id, id){
 		this.yAxis = d3.svg.axis().scale(this.yScale).orient("left");
 		this.xAxisGroup = this.svg.append("g").attr("class", "x axis");
 		this.yAxisGroup = this.svg.append("g").attr("class", "y axis");
-
-		// Set up white blocks for blocking excess graph
-		this.frames = this.super.frames;
-		this.frame_dim = this.super.frame_dim;
-
 	}
 
 	this.addData = function(series, x, y){
@@ -452,17 +458,27 @@ function sdLine(div_id, id){
 			.attr("transform", "translate("+this.grapharea.left+",0)");
 	}
 
+	this.resizeGraph = function(div_id, id){
+		this.dataset.forEach((v)=>{
+			v.sdVars = {};
+		});
+		this.super.constructor(div_id, id);
+		this.constructor(div_id, id);
+		this.setMouseEffects();
+		this.updateGraph();
+	}
+
 	this.bisect = d3.bisector(function(d) { return d.x; }).right;
 	this.arrToRGB = this.super.arrToRGB;
 	this.clrArrToDecimal = this.super.clrArrToDecimal;
 	this.withinGrapharea = this.super.withinGrapharea;
 
-	this.consturctor();
+	this.consturctor(div_id, id);
 }
 
 function sdGantt(div_id, id){
 	this.super = new sdAbsGraph(div_id, id);
-	this.consturctor = function(){
+	this.consturctor = function(div_id, id){
 		this.id = this.super.id;
 		this.div_id = this.super.div_id;
 		this.div = this.super.div;
@@ -474,18 +490,22 @@ function sdGantt(div_id, id){
 		this.platform = this.super.platform;
 		this.svg = this.super.svg;
 
-		this.dataset = [];
-		this.categories = [];
+		this.dataset = this.dataset == undefined ? [] : this.dataset;
+		this.categories = this.categories == undefined ? [] : this.categories;
 
 		// some prop		
-		this.shrinkY = true;
+		this.shrinkY = this.shrinkY == undefined ? true : this.shrinkY;
 
-		this.dataprop = this.super.dataprop; 
-		this.grapharea = this.super.grapharea; 
-		this.graphprop = this.super.graphprop; 
+		this.dataprop = this.dataprop == undefined ? this.super.dataprop : this.dataprop;
+		this.grapharea = this.grapharea == undefined ? this.super.grapharea : this.grapharea;
+		this.graphprop = this.graphprop == undefined ? this.super.graphprop : this.graphprop;
 		this.colors = this.super.colors;
 
-		this.setGraphMargin(100,50,100,100);
+		// Set up white blocks for blocking excess graph
+		this.frames = this.super.frames;
+		this.frame_dim = this.super.frame_dim;
+
+		this.setGraphMargin(this.grapharea.top, this.grapharea.right, this.grapharea.bottom, this.grapharea.left);
 
 		// Set up axis scaling
 		this.xScale = d3.scale.linear();
@@ -494,11 +514,6 @@ function sdGantt(div_id, id){
 		this.yAxis = d3.svg.axis().scale(this.yScale).orient("left");
 		this.xAxisGroup = this.svg.append("g").attr("class", "x axis");
 		this.yAxisGroup = this.svg.append("g").attr("class", "y axis");
-
-		// Set up white blocks for blocking excess graph
-		this.frames = this.super.frames;
-		this.frame_dim = this.super.frame_dim;
-
 	}
 
 	this.addData = function(category, pid, pname, start, end){
@@ -660,11 +675,21 @@ function sdGantt(div_id, id){
 		this.yAxisGroup.call(this.yAxis)
 			.attr("transform", "translate("+this.grapharea.left+",0)");
 	}
+	
+	this.resizeGraph = function(div_id, id){
+		this.dataset.forEach((v)=>{
+			v.sdVars = {};
+		});
+		this.super.constructor(div_id, id);
+		this.constructor(div_id, id);
+		this.setMouseEffects();
+		this.updateGraph();
+	}
 
 	this.bisect = d3.bisector(function(d) { return d.start; }).right;
 	this.arrToRGB = this.super.arrToRGB;
 	this.clrArrToDecimal = this.super.clrArrToDecimal;
 	this.withinGrapharea = this.super.withinGrapharea;
 
-	this.consturctor();
+	this.consturctor(div_id, id);
 }
