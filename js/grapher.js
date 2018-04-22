@@ -55,6 +55,7 @@ function Graph(div_id){
 					g = new sdLine(id, i);
 					break;
 				case this.graphType.gantt:
+					g = new sdGantt(id, i);
 					break;
 				default:
 					break;
@@ -166,14 +167,6 @@ function sdAbsGraph(div_id, id){
 			xdomain:[]
 		}
 
-		// Set up axis scaling
-		this.xScale = d3.scale.linear();
-		this.yScale = d3.scale.linear();
-		this.xAxis = d3.svg.axis().scale(this.xScale).orient("bottom");
-		this.yAxis = d3.svg.axis().scale(this.yScale).orient("left");
-		this.xAxisGroup = this.svg.append("g").attr("class", "x axis");
-		this.yAxisGroup = this.svg.append("g").attr("class", "y axis");
-
 		// Set up white blocks for blocking excess graph
 		this.frames = Stardust.mark.create(Stardust.mark.rect(), this.platform);
 		this.frame_dim = [];
@@ -243,12 +236,12 @@ function sdLine(div_id, id){
 		this.setGraphMargin(100,50,100,100);
 
 		// Set up axis scaling
-		this.xScale = this.super.xScale;
-		this.yScale = this.super.yScale;
-		this.xAxis = this.super.xAxis;
-		this.yAxis = this.super.yAxis;
-		this.xAxisGroup = this.super.xAxisGroup;
-		this.yAxisGroup = this.super.yAxisGroup;
+		this.xScale = d3.scale.linear();
+		this.yScale = d3.scale.linear();
+		this.xAxis = d3.svg.axis().scale(this.xScale).orient("bottom");
+		this.yAxis = d3.svg.axis().scale(this.yScale).orient("left");
+		this.xAxisGroup = this.svg.append("g").attr("class", "x axis");
+		this.yAxisGroup = this.svg.append("g").attr("class", "y axis");
 
 		// Set up white blocks for blocking excess graph
 		this.frames = this.super.frames;
@@ -298,12 +291,12 @@ function sdLine(div_id, id){
 				v.sdVars.lines = Stardust.mark.create(v.sdVars.lineSpec, this.platform);
 
 				v.sdVars.lines.attr("width", 2).attr("color", this.clrArrToDecimal(this.colors[i]))
-					.attr("p1", (d, i) => {
-						if (i == 0) return [0,0];
-						return [this.xScale(v.data[i-1].x), this.yScale(v.data[i-1].y)];
+					.attr("p1", (d, j) => {
+						if (j == 0) return [0,0];
+						return [this.xScale(v.data[j-1].x), this.yScale(v.data[j-1].y)];
 					})
-					.attr("p2", (d, i) => {
-						if (i == 0) return [0,0];
+					.attr("p2", (d, j) => {
+						if (j == 0) return [0,0];
 						return [this.xScale(d.x), this.yScale(d.y)];				
 					})
 			}
@@ -360,10 +353,11 @@ function sdLine(div_id, id){
 			this.mouse_g_line.attr("transform", "translate(" + (pt.x) +","+this.grapharea.top+")")
 			this.renderTooltip(pt);
 		})
-	}
-
-	this.withinGrapharea = function(x, y){
-		return x > this.grapharea.left && x < (this.grapharea.left + this.grapharea.width) && y > this.grapharea.top && y < (this.grapharea.top + this.grapharea.height);
+		.on("click", ()=>{
+			this.dataset.forEach((d, i) => {
+				print(d.series, d.hovering);
+			})
+		});
 	}
 
 	this.renderTooltip = function(mouse_pos){
@@ -377,9 +371,10 @@ function sdLine(div_id, id){
 				var pt = {x:this.xScale(v.x), y:this.yScale(v.y)};
 
 				if(pt.x > this.grapharea.left + this.grapharea.width || pt.x < this.grapharea.left){
+					d.hovering = false;
 					return "translate(-10,-10)";
 				}
-
+				d.hovering = pt;
 				return "translate("+pt.x+","+pt.y+")";
 			});
 		}
@@ -433,6 +428,205 @@ function sdLine(div_id, id){
 		this.yScale
 			.domain(ydomain)
 			.range([this.grapharea.top + this.grapharea.height, this.grapharea.top]);
+		this.yAxisGroup.call(this.yAxis)
+			.attr("transform", "translate("+this.grapharea.left+",0)");
+	}
+
+	this.bisect = d3.bisector(function(d) { return d.x; }).right;
+	this.arrToRGB = this.super.arrToRGB;
+	this.clrArrToDecimal = this.super.clrArrToDecimal;
+	this.withinGrapharea = this.super.withinGrapharea;
+
+	this.consturctor();
+}
+
+function sdGantt(div_id, id){
+	this.super = new sdAbsGraph(div_id, id);
+	this.consturctor = function(){
+		this.id = this.super.id;
+		this.div_id = this.super.div_id;
+		this.div = this.super.div;
+
+		this.canvas = this.super.canvas;
+		this.width = this.super.width;
+		this.height = this.super.height;
+
+		this.platform = this.super.platform;
+		this.svg = this.super.svg;
+
+		this.dataset = [];
+		this.categories = [];
+
+		// some prop		
+		this.shrinkY = true;
+
+		this.dataprop = this.super.dataprop; 
+		this.grapharea = this.super.grapharea; 
+		this.graphprop = this.super.graphprop; 
+		this.colors = this.super.colors;
+
+		this.setGraphMargin(100,50,100,100);
+
+		// Set up axis scaling
+		this.xScale = d3.scale.linear();
+		this.yScale = d3.scale.ordinal();
+		this.xAxis = d3.svg.axis().scale(this.xScale).orient("bottom");
+		this.yAxis = d3.svg.axis().scale(this.yScale).orient("left");
+		this.xAxisGroup = this.svg.append("g").attr("class", "x axis");
+		this.yAxisGroup = this.svg.append("g").attr("class", "y axis");
+
+		// Set up white blocks for blocking excess graph
+		this.frames = this.super.frames;
+		this.frame_dim = this.super.frame_dim;
+
+	}
+
+	this.addData = function(category, pid, pname, start, end){
+		var index = this.categories.indexOf(category);
+		if(index < 0){
+			this.categories.push(category);
+			this.dataset.push({
+				category: category,
+				data: [],
+				sdVars:{}
+			})
+		}
+
+		index = this.categories.indexOf(category);
+		this.dataset[index].data.push({
+			pid:pid,
+			pname:pname,
+			start:start,
+			end:end
+		})
+
+		this.dataprop.start = (this.dataprop.start == undefined || start < this.dataprop.start) ? start : this.dataprop.start;
+		this.dataprop.end = (this.dataprop.end == undefined || end > this.dataprop.end) ? end : this.dataprop.end;
+	}
+
+	this.updateGraph = function(){
+		if(this.graphprop.xdomain.length != 2) this.graphprop.xdomain = [this.dataprop.start, this.dataprop.end];
+
+		this.setGraphMargin(this.grapharea.top, this.grapharea.right, this.grapharea.bottom, this.grapharea.left);
+
+		this.dataprop.delta = this.dataprop.end - this.dataprop.start;
+
+		this.dataset.forEach((v, i)=>{
+			if(!v.sdVars.rectSpec || !v.sdVars.rects) {
+				v.sdVars.rectSpec = Stardust.mark.rect();
+				v.sdVars.rects = Stardust.mark.create(v.sdVars.rectSpec, this.platform);
+
+				v.sdVars.rects.attr("color", (d, j) => this.clrArrToDecimal(this.colors[d.pid]))
+					.attr("p1", (d, j) => {
+						return [this.xScale(d.start), this.yScale(this.categories[i])];
+					})
+					.attr("p2", (d, j) => {
+						return [this.xScale(d.end), this.yScale(this.categories[i]) + (this.grapharea.height / this.categories.length)];				
+					})
+			}
+		});
+
+		this.renderGraph();
+	}
+
+	this.setGraphMargin = this.super.setGraphMargin;
+
+	this.updateZoom = function(xdomain){
+		this.graphprop.xdomain = xdomain;
+		this.dataset.forEach((v, i)=>{
+			this.xScale.domain(xdomain)
+		});
+		this.renderGraph();
+
+		if(this.mouse_g && d3.event){
+			var pt = {x:d3.event.sourceEvent.layerX, y:d3.event.sourceEvent.layerY};
+			this.renderTooltip(pt);
+		}
+	}
+
+	this.setMouseEffects = function(){
+		return;
+		this.mouse_g = this.svg.append("g").attr("class", "mouse-over-effects");
+		this.mouse_g_line = this.mouse_g.append("line").attr("x2", 0).attr("y2", this.grapharea.height)
+			.attr("stroke", "grey").attr("stroke-width", 2).attr("opacity", 0);
+
+		this.mouse_g_node = this.mouse_g.selectAll(".mouse-over-node")
+			.data(this.dataset)
+			.enter()
+			.append("g")
+			.attr("class", "mouse-over-node").attr("opacity", 0);
+		this.mouse_g_node.append("circle")
+			.attr("r", 7).style("stroke", (d,i) => this.arrToRGB(this.colors[i]))
+			.style("fill", "none").style("stroke-width", this.graphprop.tipstrokewidth);
+
+		this.mouse_g_rect = this.mouse_g.append("svg:rect").attr("opacity", 0)
+			.attr("width", this.grapharea.width).attr("height", this.grapharea.height)
+			.attr("transform", "translate("+this.grapharea.left+","+this.grapharea.top+")");
+
+		this.mouse_g_rect
+		.on("mouseover", ()=>{
+			var pt = {x:d3.event.layerX, y:d3.event.layerX};
+			this.mouse_g_line.attr("opacity", 1);
+			this.mouse_g_node.attr("opacity", 1);
+		})
+		.on("mouseleave", ()=>{
+			this.mouse_g_line.attr("opacity", 0);
+			this.mouse_g_node.attr("opacity", 0);
+		})
+		.on("mousemove", ()=>{
+			var pt = {x:d3.event.layerX, y:d3.event.layerX};
+			this.mouse_g_line.attr("transform", "translate(" + (pt.x) +","+this.grapharea.top+")")
+			this.renderTooltip(pt);
+		})
+	}
+
+	this.renderTooltip = function(mouse_pos){
+		if(this.mouse_g_node){
+			this.mouse_g_node.attr("transform", (d, i)=>{
+				var x_index = this.xScale.invert(mouse_pos.x);
+				x_index = this.bisect(d.data, x_index);
+
+				x_index = x_index >= d.data.length ? d.data.length-1 : x_index;
+				var v = d.data[x_index];
+				var pt = {x:this.xScale(v.x), y:this.yScale(v.y)};
+
+				if(pt.x > this.grapharea.left + this.grapharea.width || pt.x < this.grapharea.left){
+					return "translate(-10,-10)";
+				}
+				return "translate("+pt.x+","+pt.y+")";
+			});
+		}
+	}
+
+	this.renderGraph = function(){
+		this.platform.clear();
+
+		// Render axis
+		this.renderXAxis();
+		this.renderYAxis();
+
+		// Render actual graph with data
+		this.dataset.forEach((v, i)=>{
+			v.sdVars.rects.data(v.data);
+			v.sdVars.rects.render();
+		});
+
+		// Set blocking frames
+		this.frames.data(this.frame_dim).render();
+	}
+
+	this.renderXAxis = function(){
+		this.xScale
+			.domain(this.graphprop.xdomain)
+			.range([this.grapharea.left, this.grapharea.left + this.grapharea.width]);
+		this.xAxisGroup.call(this.xAxis)
+			.attr("transform", "translate(0, "+(this.grapharea.top + this.grapharea.height)+")");
+	}
+
+	this.renderYAxis = function(){
+		this.yScale
+			.domain(this.categories)
+			.rangeBands([this.grapharea.top + this.grapharea.height, this.grapharea.top]);
 		this.yAxisGroup.call(this.yAxis)
 			.attr("transform", "translate("+this.grapharea.left+",0)");
 	}
