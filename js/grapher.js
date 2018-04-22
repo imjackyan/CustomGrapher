@@ -17,8 +17,6 @@ function Graph(div_id){
 		this.main_cont = d3.select("#" + div_id);
 		this.graph_cont = this.main_cont.append("div").attr("id", this.div_id);
 
-		this.mouse_cont = this.main_cont.append("g").attr("class", "mouse-over-effects");
-
 		// prop
 		this.dataprop = {
 			start:0, end:0, delta:0
@@ -37,6 +35,15 @@ function Graph(div_id){
 			var e = s + m * this.grapharea.width / sc;
 			this.updateZoom([s, e]);
 		}));
+
+		// GUI container
+		this.gui = this.main_cont.append("div").attr("class", "cus-gui");
+		this.gui.append("input").attr("type", "button").attr("value", "Zoom to fit")
+			.on("click", () => {
+				this.updateZoom([this.dataprop.start, this.dataprop.end]);
+				this.d3zoom.translate([0,0]);
+				this.d3zoom.scale(1);
+			})
 	}
 
 	this.addGraph = function(type){
@@ -318,7 +325,7 @@ function sdLine(div_id, id){
 		});
 		this.renderGraph();
 
-		if(this.mouse_g && d3.event){
+		if(this.mouse_g && d3.event && d3.event.sourceEvent){
 			var pt = {x:d3.event.sourceEvent.layerX, y:d3.event.sourceEvent.layerY};
 			this.renderTooltip(pt);
 		}
@@ -400,6 +407,14 @@ function sdLine(div_id, id){
 
 		// Set blocking frames
 		this.frames.data(this.frame_dim).render();
+
+		// Set mouse effect rect
+		if(this.mouse_g){
+			this.mouse_g_line.attr("y2", this.grapharea.height);
+			this.mouse_g_rect
+				.attr("width", this.grapharea.width).attr("height", this.grapharea.height)
+				.attr("transform", "translate("+this.grapharea.left+","+this.grapharea.top+")");
+		}
 	}
 
 	this.renderXAxis = function(){
@@ -543,7 +558,7 @@ function sdGantt(div_id, id){
 		});
 		this.renderGraph();
 
-		if(this.mouse_g && d3.event){
+		if(this.mouse_g && d3.event && d3.event.sourceEvent){
 			var pt = {x:d3.event.sourceEvent.layerX, y:d3.event.sourceEvent.layerY};
 			this.renderTooltip(pt);
 		}
@@ -621,6 +636,13 @@ function sdGantt(div_id, id){
 
 		// Set blocking frames
 		this.frames.data(this.frame_dim).render();
+
+		// Set mouse effect rect
+		if(this.mouse_g){
+			this.mouse_g_rect
+				.attr("width", this.grapharea.width).attr("height", this.grapharea.height)
+				.attr("transform", "translate("+this.grapharea.left+","+this.grapharea.top+")");
+		}
 	}
 
 	this.renderXAxis = function(){

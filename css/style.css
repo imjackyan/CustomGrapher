@@ -11,3 +11,7 @@ path {
     stroke-width: 1;
     shape-rendering: crispEdges;
 }
+
+.cus-gui {
+	position: absolute; right: 5px; top: 5px;
+}
