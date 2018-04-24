@@ -39,20 +39,30 @@ path {
 	display: inline-block;
 }
 .cus-gantt-tooltip:after {
-  box-sizing: border-box;
-  display: inline;
-  font-size: 10px;
-  width: 100%;
-  line-height: 1;
-  color: rgba(0, 0, 0, 0.75);
-  content: "\25BC";
-  position: absolute;
-  text-align: center;
-  margin: -1px 0 0 0;
-  top: 100%;
-  left: 0;
+	box-sizing: border-box;
+	display: inline;
+	font-size: 10px;
+	width: 100%;
+	line-height: 1;
+	color: rgba(0, 0, 0, 0.75);
+	content: "\25BC";
+	position: absolute;
+	text-align: center;
+	margin: -1px 0 0 0;
+	top: 100%;
+	left: 0;
 }
 
 .cus-subplot{
 	margin:0px;
+}
+
+.title{
+  	position: absolute; text-align: center; margin: auto; top:0;
+}
+.x.title{
+	top: auto; bottom: 0;
+}
+.title .center{
+	position: absolute; top: 0; left: 0; right: 0; bottom: 0; margin: auto; height: 10px;
 }

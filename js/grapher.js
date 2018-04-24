@@ -61,6 +61,16 @@ function Graph(div_id){
 				this.d3zoom.translate([0,0]);
 				this.d3zoom.scale(1);
 			})
+		this.div_title = this.main_cont.append("div").style("width", "100%").attr("class", "title");
+		this.div_xtitle = this.main_cont.append("div").style("width", "100%").attr("class", "x title");
+		this.div_title.append("h2").attr("class", "center"); this.div_xtitle.append("h3").attr("class", "center");
+	}
+
+	this.setXTitle = function(val){
+		this.div_xtitle.select(".center").html(val)
+	}
+	this.setTitle = function(val){
+		this.div_title.select(".center").html(val)
 	}
 
 	this.addGraph = function(type){
@@ -167,6 +177,10 @@ function Graph(div_id){
 			return ret + "px";
 		});
 		this.resizeGraphs();
+
+		// Set titles
+		this.div_title.style("height", top + "px");
+		this.div_xtitle.style("height", bottom + "px")
 	}
 
 	this.resizeGraphs = function(){
