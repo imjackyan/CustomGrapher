@@ -12,12 +12,12 @@
 	<script type="text/javascript">
 		var t = new Graph("graph");
 		var line = t.addGraph(t.graphType.line);
-		// var line2 = t.addGraph(t.graphType.line);
+		var line2 = t.addGraph(t.graphType.line);
 		var gantt = t.addGraph(t.graphType.gantt);
 		t.initializeGraphs();
 
 		line = t.getGraph(line);
-		// line2 = t.getGraph(line2);
+		line2 = t.getGraph(line2);
 		gantt = t.getGraph(gantt);
 
 		var ct = ["d3d", "mm", "vr"]
@@ -26,7 +26,7 @@
 		for(var i = 0; i < 1000; i++){
 			// line.addData(ns[i%2], 3*i+i%2, Math.random()*100);
 			line.addData(ns[i%2], 3*i+i%2, Math.sin(i/(10+i%2*5))*100);
-			// line2.addData(ns[i%2], 3*i+i%2, Math.random()*100);
+			line2.addData(ns[i%2], 3*i+i%2, Math.random()*100);
 
 			var inc = Math.random()*10;
 			gantt.addData(ct[i%3], i%5, ns[i%3], s[i%3], s[i%3] + inc);

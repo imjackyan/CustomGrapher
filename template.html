@@ -1,0 +1,36 @@
+<html>
+<head>
+	<title>graph</title>
+	<meta charset="utf-8">
+	<script type="text/javascript" src="https://stardustjs.github.io/stardust/v0.1.1/stardust.bundle.min.js"></script>
+	<script src="js/d3.v3.js"></script>
+	<script type="text/javascript" src="js/grapher.js"></script>
+	<link rel="stylesheet" type="text/css" href="css/style.css">
+</head>
+<body>
+	<div id="graph" style="position:absolute; margin:1%; width:95%; height:95%;"></div>
+	<script type="text/javascript">
+		var t = new Graph("graph");
+		var line = t.addGraph(t.graphType.line);
+		var gantt = t.addGraph(t.graphType.gantt);
+		t.initializeGraphs();
+
+		line = t.getGraph(line);
+		gantt = t.getGraph(gantt);
+
+		gantt.addDataSet({{template.gantt}});
+        var lineseries = {{template.lines}};
+        for(var i = 0; i < lineseries.length; i++){
+            line.addSeriesDataSet(lineseries[i].name, lineseries[i].data);
+        }
+
+		t.setMouseEffects();
+		t.setGraphMargin(100,100,100,100);
+		t.updateGraphs();
+
+		window.onresize = ()=>{
+			t.resizeGraphs();
+		}
+	</script>
+</body>
+</html>

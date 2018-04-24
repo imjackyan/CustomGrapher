@@ -24,16 +24,35 @@ function Graph(div_id){
 		this.grapharea = {
 			width:this.width, height:this.height, top:0, left:0, right:0, bottom:0
 		}
+		this.zoomprop = {
+			t:[0,0], sc:1
+		}
 
 		// Set up zoomimg
+		// this.mouse_cont = this.graph_cont.append("div").style("height", "100%").style("width", "100%")
+		// 	.style("position", "absolute").style("top", 0).style("left", 0);
 		this.d3zoom = d3.behavior.zoom();
 		this.main_cont.call(this.d3zoom.on("zoom", ()=> {
-			var t = d3.event.translate;
-			var sc = d3.event.scale;
-			var m = this.dataprop.delta / this.grapharea.width;
-			var s = this.dataprop.start - m * t[0] / sc;
-			var e = s + m * this.grapharea.width / sc;
-			this.updateZoom([s, e]);
+			var pt = {x: d3.event.sourceEvent.clientX, y: d3.event.sourceEvent.clientY};
+
+			if(pt.x > this.grapharea.left && pt.x < this.grapharea.left + this.grapharea.width &&
+				pt.y > this.grapharea.top && pt.y < this.grapharea.top + this.grapharea.height){
+				this.zoomprop.t = d3.event.translate;
+				this.zoomprop.sc = d3.event.scale;
+				var m = this.dataprop.delta / this.width;
+				var s = this.dataprop.start - m * this.zoomprop.t[0] / this.zoomprop.sc;
+				var e = s + m * this.width / this.zoomprop.sc;
+
+				// Account for margin
+				var d = e - s;
+				s = s + d * (this.grapharea.left / this.width);
+				e = e - d * (this.grapharea.right / this.width);
+
+				this.updateZoom([s, e]);
+			}else{
+				this.d3zoom.translate(this.zoomprop.t);
+				this.d3zoom.scale(this.zoomprop.sc);
+			}
 		}));
 
 		// GUI container
@@ -52,11 +71,16 @@ function Graph(div_id){
 	}
 
 	this.initializeGraphs = function(){
+		this.graph_divs = this.graph_cont.selectAll("div").data(this.graphs).enter()
+			.append("div").style("width", "100%").style("height", (100/this.graphs.length)+"%")
+			.attr("id",(d,i)=> this.div_id + "-" + i)
+			.attr("class", "cus-subplot");
+
 		for(var i = 0; i < this.graphs.length; i++){
 			if(this.graphs[i] >= this.graphType.max) continue;
 			var g;
 			var id = this.div_id + "-" + i;
-			this.graph_cont.append("div").style("width", "100%").style("height", (100/this.graphs.length)+"%").attr("id", id);
+
 			switch(this.graphs[i]){
 				case this.graphType.line:
 					g = new sdLine(id, i);
@@ -130,6 +154,21 @@ function Graph(div_id){
 				}
 			});
 		}
+
+		var h = this.grapharea.height / this.graphs.length
+		this.graph_divs.style("height", (d,i)=>{
+			this.graphs[i].plotoffset.y = this.grapharea.top + i * h;
+			var ret;
+			if (i == 0){
+				ret = this.grapharea.top + h;
+			}else if(i == this.graphs.length - 1){
+				ret = h + this.grapharea.bottom;
+			}else{				
+				ret = h;
+			}
+			return ret + "px";
+		});
+		this.resizeGraphs();
 	}
 
 	this.resizeGraphs = function(){
@@ -159,6 +198,9 @@ function sdAbsGraph(div_id, id){
 		this.svg = d3.select("#"+this.div_id).append("svg").attr("id", "subplot-svg-" + this.id)
 			.attr("width", this.width).attr("height", this.height)
 			.style("position", "absolute").style("top", 0).style("left", 0);
+		this.interact_svg = d3.select("#"+this.div_id).append("svg").attr("id", "interact-svg-" + this.id)
+			.attr("width", this.width).attr("height", this.height)
+			.style("position", "absolute").style("top", 0).style("left", 0).style("z-index", 999);
 
 		// Properties
 		this.colors = [
@@ -169,6 +211,11 @@ function sdAbsGraph(div_id, id){
 			[83,81,84,1],
 			[107,76,154,1],
 			[148,139,61,1],
+			[146,36,40,1],
+			[146,36,40,1],
+			[146,36,40,1],
+			[146,36,40,1],
+			[146,36,40,1],
 			[146,36,40,1]
 		];
 		this.dataprop = {
@@ -203,14 +250,16 @@ function sdAbsGraph(div_id, id){
 		]
 	}
 
-	this.arrToRGB = function(arr){
+	this.arrToRGB = function(arr, opacity){
 		var a;
+		opacity = opacity == undefined ? 1 : opacity;
 		if (arr.length >= 4){
+			arr[3] = opacity == undefined ? arr[3] : opacity;
 			a = "rgba("+arr.join()+")";
 		}else if(arr.length == 3){
-			a = "rgba("+arr.join()+",1)";
+			a = "rgba("+arr.join()+","+ opacity + ")";
 		}else{
-			a = "rgba(0,0,0,1)"
+			a = "rgba(0,0,0,"+ opacity + ")"
 		}
 		return a;
 	}
@@ -240,6 +289,7 @@ function sdLine(div_id, id){
 
 		this.platform = this.super.platform;
 		this.svg = this.super.svg;
+		this.interact_svg = this.super.interact_svg;
 
 		this.dataset = this.dataset == undefined ? [] : this.dataset;
 
@@ -294,6 +344,17 @@ function sdLine(div_id, id){
 		this.dataprop.max = (this.dataprop.max == undefined || y > this.dataprop.max) ? y : this.dataprop.max;
 	}
 
+	this.addSeriesDataSet = function(name, dataset){
+    	for(var i = 0; i < dataset.length; i++){
+    		if(dataset[i].x != null && dataset[i].y != null){
+    			this.addData(name, dataset[i].x, dataset[i].y);
+    		}else{
+    			return false;
+    		}
+    	}
+    	return true;
+    }
+
 	this.updateGraph = function(){
 		if(this.graphprop.xdomain.length != 2) this.graphprop.xdomain = [this.dataprop.start, this.dataprop.end];
 
@@ -338,6 +399,7 @@ function sdLine(div_id, id){
 	}
 
 	this.setMouseEffects = function(){
+		// Only call this once when all data are added.
 		this.mouse_g = this.svg.append("g").attr("class", "mouse-over-effects");
 		this.mouse_g_line = this.mouse_g.append("line").attr("x2", 0).attr("y2", this.grapharea.height)
 			.attr("stroke", "grey").attr("stroke-width", 2).attr("opacity", 0);
@@ -351,7 +413,15 @@ function sdLine(div_id, id){
 			.attr("r", 7).style("stroke", (d,i) => this.arrToRGB(this.colors[i]))
 			.style("fill", "none").style("stroke-width", this.graphprop.tipstrokewidth);
 
-		this.mouse_g_rect = this.mouse_g.append("svg:rect").attr("opacity", 0)
+		d3.select("#"+this.div_id).append("div").style("width", 0).style("height", 0)
+			.style("position", "absolute").style("left", 0).style("top", 0).attr("class", "mouse-tooltip-div");
+		this.mouse_g_tooltip = d3.select("#"+this.div_id).select(".mouse-tooltip-div").selectAll("div")
+			.data(this.dataset)
+			.enter()
+			.append("div")
+			.style("display", "none").attr("class", "cus-line-tooltip");
+
+		this.mouse_g_rect = this.interact_svg.append("svg:rect").attr("opacity", 0)
 			.attr("width", this.grapharea.width).attr("height", this.grapharea.height)
 			.attr("transform", "translate("+this.grapharea.left+","+this.grapharea.top+")");
 
@@ -360,10 +430,12 @@ function sdLine(div_id, id){
 			var pt = {x:d3.event.layerX, y:d3.event.layerX};
 			this.mouse_g_line.attr("opacity", 1);
 			this.mouse_g_node.attr("opacity", 1);
+			this.mouse_g_tooltip.style("display", "block");
 		})
 		.on("mouseleave", ()=>{
 			this.mouse_g_line.attr("opacity", 0);
 			this.mouse_g_node.attr("opacity", 0);
+			this.mouse_g_tooltip.style("display", "none");
 		})
 		.on("mousemove", ()=>{
 			var pt = {x:d3.event.layerX, y:d3.event.layerY};
@@ -393,7 +465,21 @@ function sdLine(div_id, id){
 				}
 				d.hovering = pt;
 				d.hovering.index = x_index;
+				d.hovering.data = v;
 				return "translate("+pt.x+","+pt.y+")";
+			});
+		}
+		if(this.mouse_g_tooltip){
+			this.mouse_g_tooltip.style("left", (d, i)=>{
+				var div = this.mouse_g_tooltip[0][i];
+				return d.hovering.x - (div.getBoundingClientRect().width / 2);
+			}).style("top", (d, i)=>{
+				var div = this.mouse_g_tooltip[0][i];
+				return d.hovering.y - (div.getBoundingClientRect().height) - 10;
+			}).html((d, i)=>{
+				return d.hovering.data.y;
+			}).style("background", (d, i)=>{
+				return this.arrToRGB(this.colors[i], 0.7);
 			});
 		}
 	}
@@ -432,7 +518,7 @@ function sdLine(div_id, id){
 	}
 
 	this.renderYAxis = function(){
-		var yPadding = 0.1;
+		var yPadding = 0.05;
 		var ydomain = [this.dataprop.min - this.dataprop.ydelta * yPadding, this.dataprop.max + this.dataprop.ydelta * yPadding];
 
 		if(this.shrinkY){
@@ -489,9 +575,11 @@ function sdGantt(div_id, id){
 
 		this.platform = this.super.platform;
 		this.svg = this.super.svg;
+		this.interact_svg = this.super.interact_svg;
 
 		this.dataset = this.dataset == undefined ? [] : this.dataset;
 		this.categories = this.categories == undefined ? [] : this.categories;
+		this.pidToColor = this.pidToColor == undefined ? {} : this.pidToColor;
 
 		// some prop		
 		this.shrinkY = this.shrinkY == undefined ? true : this.shrinkY;
@@ -535,9 +623,25 @@ function sdGantt(div_id, id){
 			end:end
 		})
 
+		if (!this.pidToColor[pid]){
+			this.pidToColor[pid] = Object.keys(this.pidToColor).length;
+		}
+
 		this.dataprop.start = (this.dataprop.start == undefined || start < this.dataprop.start) ? start : this.dataprop.start;
 		this.dataprop.end = (this.dataprop.end == undefined || end > this.dataprop.end) ? end : this.dataprop.end;
 	}
+
+	this.addDataSet = function(dataset){
+    	for(i = 0; i < dataset.length; i++){
+    		d = dataset[i];
+    		if(d.category != null && d.pid != null && d.start != null && d.end != null && d.pname != null){
+    			this.addData(d.category, d.pid, d.pname, d.start, d.end);
+    		}else{
+    			return false;
+    		}
+    	}
+    	return true;
+    }
 
 	this.updateGraph = function(){
 		if(this.graphprop.xdomain.length != 2) this.graphprop.xdomain = [this.dataprop.start, this.dataprop.end];
@@ -551,7 +655,7 @@ function sdGantt(div_id, id){
 				v.sdVars.rectSpec = Stardust.mark.rect();
 				v.sdVars.rects = Stardust.mark.create(v.sdVars.rectSpec, this.platform);
 
-				v.sdVars.rects.attr("color", (d, j) => this.clrArrToDecimal(this.colors[d.pid]))
+				v.sdVars.rects.attr("color", (d, j) => this.clrArrToDecimal(this.colors[this.pidToColor[d.pid]]))
 					.attr("p1", (d, j) => {
 						return [this.xScale(d.start), this.yScale(this.categories[i])];
 					})
@@ -589,7 +693,7 @@ function sdGantt(div_id, id){
 			.append("g")
 			.attr("class", "mouse-over-node").attr("opacity", 0);
 
-		this.mouse_g_rect = this.mouse_g.append("svg:rect").attr("opacity", 0)
+		this.mouse_g_rect = this.interact_svg.append("svg:rect").attr("opacity", 0)
 			.attr("width", this.grapharea.width).attr("height", this.grapharea.height)
 			.attr("transform", "translate("+this.grapharea.left+","+this.grapharea.top+")");
 
@@ -627,7 +731,8 @@ function sdGantt(div_id, id){
 							var v = d.data[j];
 							var pt = {start:this.xScale(v.start), end:this.xScale(v.end)};
 							if(mouse_pos.x > pt.start && mouse_pos.x < pt.end){
-								this.hovering = v;
+								this.hovering = pt;
+								this.hovering.data = v;
 							}
 						}
 					}
