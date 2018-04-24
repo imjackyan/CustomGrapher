@@ -29,8 +29,6 @@ function Graph(div_id){
 		}
 
 		// Set up zoomimg
-		// this.mouse_cont = this.graph_cont.append("div").style("height", "100%").style("width", "100%")
-		// 	.style("position", "absolute").style("top", 0).style("left", 0);
 		this.d3zoom = d3.behavior.zoom();
 		this.main_cont.call(this.d3zoom.on("zoom", ()=> {
 			var pt = {x: d3.event.sourceEvent.clientX, y: d3.event.sourceEvent.clientY};
@@ -56,7 +54,7 @@ function Graph(div_id){
 		}));
 
 		// GUI container
-		this.gui = this.main_cont.append("div").attr("class", "cus-gui");
+		this.gui = this.main_cont.append("div").attr("class", "cus-gui").style("z-index", 999);
 		this.gui.append("input").attr("type", "button").attr("value", "Zoom to fit")
 			.on("click", () => {
 				this.updateZoom([this.dataprop.start, this.dataprop.end]);
@@ -200,7 +198,7 @@ function sdAbsGraph(div_id, id){
 			.style("position", "absolute").style("top", 0).style("left", 0);
 		this.interact_svg = d3.select("#"+this.div_id).append("svg").attr("id", "interact-svg-" + this.id)
 			.attr("width", this.width).attr("height", this.height)
-			.style("position", "absolute").style("top", 0).style("left", 0).style("z-index", 999);
+			.style("position", "absolute").style("top", 0).style("left", 0).style("z-index", 900);
 
 		// Properties
 		this.colors = [
@@ -230,6 +228,9 @@ function sdAbsGraph(div_id, id){
 			strokewidth: 2,
 			tipstrokewidth:2, 
 			xdomain:[]
+		}
+		this.hasAxis = {
+			x:true, y:true
 		}
 
 		// Set up white blocks for blocking excess graph
@@ -295,11 +296,18 @@ function sdLine(div_id, id){
 
 		// some prop		
 		this.shrinkY = this.shrinkY == undefined ? true : this.shrinkY;
+		this.toolTipLocation = {
+			onMouse: 0,
+			topLeft: 1,
+			topRight: 2
+		}
+		this.snapTooltip = this.toolTipLocation.onMouse;
 
 		this.dataprop = this.dataprop == undefined ? this.super.dataprop : this.dataprop; 
 		this.grapharea = this.grapharea == undefined ? this.super.grapharea : this.grapharea; 
 		this.graphprop = this.graphprop == undefined ? this.super.graphprop : this.graphprop;
 		this.colors = this.super.colors;
+		this.hasAxis = this.hasAxis == undefined ? this.super.hasAxis : this.hasAxis;
 
 		// Set up white blocks for blocking excess graph
 		this.frames = this.super.frames;
@@ -394,7 +402,10 @@ function sdLine(div_id, id){
 
 		if(this.mouse_g && d3.event && d3.event.sourceEvent){
 			var pt = {x:d3.event.sourceEvent.layerX, y:d3.event.sourceEvent.layerY};
-			this.renderTooltip(pt);
+			var abspt = {x:d3.event.sourceEvent.clientX, y:d3.event.sourceEvent.clientY};
+			if(abspt.y > this.plotoffset.y && abspt.y < this.plotoffset + this.height){
+				this.renderTooltip(pt);
+			}
 		}
 	}
 
@@ -472,15 +483,35 @@ function sdLine(div_id, id){
 		if(this.mouse_g_tooltip){
 			this.mouse_g_tooltip.style("left", (d, i)=>{
 				var div = this.mouse_g_tooltip[0][i];
-				return d.hovering.x - (div.getBoundingClientRect().width / 2);
+				var ret;
+				if(this.snapTooltip == this.toolTipLocation.onMouse){
+					ret = d.hovering.x - (div.getBoundingClientRect().width / 2);
+				}else if(this.snapTooltip == this.toolTipLocation.topLeft){
+					ret = this.grapharea.left + 5;
+				}else if(this.snapTooltip == this.toolTipLocation.topRight){
+					ret = this.grapharea.left + this.grapharea.width - div.getBoundingClientRect().width - 5;
+				}
+				return ret + "px";
 			}).style("top", (d, i)=>{
 				var div = this.mouse_g_tooltip[0][i];
-				return d.hovering.y - (div.getBoundingClientRect().height) - 10;
+				var ret;
+				if(this.snapTooltip == this.toolTipLocation.onMouse){
+					ret = d.hovering.y - (div.getBoundingClientRect().height) - 10;
+				}else if(this.snapTooltip == this.toolTipLocation.topLeft){
+					ret = this.grapharea.top + i * div.getBoundingClientRect().height + 5;
+				}else if(this.snapTooltip == this.toolTipLocation.topRight){
+					ret = this.grapharea.top + i * div.getBoundingClientRect().height + 5;
+				}
+				return ret + "px";
 			}).html((d, i)=>{
-				return d.hovering.data.y;
+				if(d.hovering){
+					return d.hovering.data.y;
+				}else{
+					return "";
+				}
 			}).style("background", (d, i)=>{
 				return this.arrToRGB(this.colors[i], 0.7);
-			});
+			}).style("display",(d) => d.hovering ? "block" : "none");
 		}
 	}
 
@@ -513,8 +544,10 @@ function sdLine(div_id, id){
 		this.xScale
 			.domain(this.graphprop.xdomain)
 			.range([this.grapharea.left, this.grapharea.left + this.grapharea.width]);
-		this.xAxisGroup.call(this.xAxis)
-			.attr("transform", "translate(0, "+(this.grapharea.top + this.grapharea.height)+")");
+		if(this.hasAxis.x){
+			this.xAxisGroup.call(this.xAxis)
+				.attr("transform", "translate(0, "+(this.grapharea.top + this.grapharea.height)+")");
+		}
 	}
 
 	this.renderYAxis = function(){
@@ -540,8 +573,10 @@ function sdLine(div_id, id){
 		this.yScale
 			.domain(ydomain)
 			.range([this.grapharea.top + this.grapharea.height, this.grapharea.top]);
-		this.yAxisGroup.call(this.yAxis)
-			.attr("transform", "translate("+this.grapharea.left+",0)");
+		if(this.hasAxis.y){
+			this.yAxisGroup.call(this.yAxis)
+				.attr("transform", "translate("+this.grapharea.left+",0)");
+		}
 	}
 
 	this.resizeGraph = function(div_id, id){
@@ -588,6 +623,7 @@ function sdGantt(div_id, id){
 		this.grapharea = this.grapharea == undefined ? this.super.grapharea : this.grapharea;
 		this.graphprop = this.graphprop == undefined ? this.super.graphprop : this.graphprop;
 		this.colors = this.super.colors;
+		this.hasAxis = this.hasAxis == undefined ? this.super.hasAxis : this.hasAxis;
 
 		// Set up white blocks for blocking excess graph
 		this.frames = this.super.frames;
@@ -679,7 +715,10 @@ function sdGantt(div_id, id){
 
 		if(this.mouse_g && d3.event && d3.event.sourceEvent){
 			var pt = {x:d3.event.sourceEvent.layerX, y:d3.event.sourceEvent.layerY};
-			this.renderTooltip(pt);
+			var abspt = {x:d3.event.sourceEvent.clientX, y:d3.event.sourceEvent.clientY};
+			if(abspt.y > this.plotoffset.y && abspt.y < this.plotoffset + this.height){
+				this.renderTooltip(pt);
+			}
 		}
 	}
 
@@ -693,6 +732,12 @@ function sdGantt(div_id, id){
 			.append("g")
 			.attr("class", "mouse-over-node").attr("opacity", 0);
 
+		d3.select("#"+this.div_id).append("div").style("width", 0).style("height", 0)
+			.style("position", "absolute").style("left", 0).style("top", 0).attr("class", "mouse-tooltip-div");
+		this.mouse_g_tooltip = d3.select("#"+this.div_id).select(".mouse-tooltip-div")
+			.append("div")
+			.style("display", "none").attr("class", "cus-gantt-tooltip");
+
 		this.mouse_g_rect = this.interact_svg.append("svg:rect").attr("opacity", 0)
 			.attr("width", this.grapharea.width).attr("height", this.grapharea.height)
 			.attr("transform", "translate("+this.grapharea.left+","+this.grapharea.top+")");
@@ -704,6 +749,7 @@ function sdGantt(div_id, id){
 		})
 		.on("mouseleave", ()=>{
 			this.mouse_g_node.attr("opacity", 0);
+			this.mouse_g_tooltip.style("display", "none");
 		})
 		.on("mousemove", ()=>{
 			var pt = {x:d3.event.layerX, y:d3.event.layerY};
@@ -722,7 +768,7 @@ function sdGantt(div_id, id){
 				if(mouse_pos.y > i * h && mouse_pos.y < (i+1)*h){
 					var x_index = this.xScale.invert(mouse_pos.x);
 					x_index = this.bisect(d.data, x_index);
-					x_index -= 2;
+					x_index -= 1;
 					x_index = x_index < 0 ? 0 : x_index;
 
 					this.hovering = false;
@@ -732,6 +778,7 @@ function sdGantt(div_id, id){
 							var pt = {start:this.xScale(v.start), end:this.xScale(v.end)};
 							if(mouse_pos.x > pt.start && mouse_pos.x < pt.end){
 								this.hovering = pt;
+								this.hovering.top = i*h;
 								this.hovering.data = v;
 							}
 						}
@@ -739,6 +786,30 @@ function sdGantt(div_id, id){
 				}
 			}
 		}
+
+		if(this.mouse_g_tooltip){
+			if(this.hovering){
+				this.mouse_g_tooltip
+					.style("display", "block")
+					.html( () => {
+						var ret = "";
+						ret += "<div class='line'><strong>Start: </strong> <span>"+ this.hovering.data.start +"</span></div>";
+						ret += "<div class='line'><strong>End: </strong> <span>"+ this.hovering.data.end +"</span></div>";
+						ret += "<div class='line'><strong>Process Name: </strong> <span>"+ this.hovering.data.pname +"</span></div>";
+						ret += "<div class='line'><strong>Process ID: </strong> <span>"+ this.hovering.data.pid +"</span></div>";
+						return ret;
+					})
+					.style("left", () => {
+						return (this.hovering.start + this.hovering.end)/2 - this.mouse_g_tooltip[0][0].getBoundingClientRect().width / 2 + "px";
+					})
+					.style("top", () => {
+						return this.hovering.top - this.mouse_g_tooltip[0][0].getBoundingClientRect().height - 7 + "px";
+					});
+			}else{
+				this.mouse_g_tooltip.style("display", "none");
+			}
+		}
+
 	}
 
 	this.renderGraph = function(){
@@ -769,16 +840,20 @@ function sdGantt(div_id, id){
 		this.xScale
 			.domain(this.graphprop.xdomain)
 			.range([this.grapharea.left, this.grapharea.left + this.grapharea.width]);
-		this.xAxisGroup.call(this.xAxis)
-			.attr("transform", "translate(0, "+(this.grapharea.top + this.grapharea.height)+")");
+		if(this.hasAxis.x){
+			this.xAxisGroup.call(this.xAxis)
+				.attr("transform", "translate(0, "+(this.grapharea.top + this.grapharea.height)+")");
+		}
 	}
 
 	this.renderYAxis = function(){
 		this.yScale
 			.domain(this.categories)
 			.rangeBands([this.grapharea.top, this.grapharea.top + this.grapharea.height]);
-		this.yAxisGroup.call(this.yAxis)
-			.attr("transform", "translate("+this.grapharea.left+",0)");
+		if(this.hasAxis.y){
+			this.yAxisGroup.call(this.yAxis)
+				.attr("transform", "translate("+this.grapharea.left+",0)");
+		}
 	}
 	
 	this.resizeGraph = function(div_id, id){
