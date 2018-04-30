@@ -15,6 +15,24 @@ path {
 .cus-gui {
 	position: absolute; right: 5px; top: 5px;
 }
+.cus-gui input{
+	margin:3px; background: rgba(0,0,0,0.7); color: white; padding: 3px 6px; border: 1px solid white; transition: 0.3s ease;
+}
+.cus-gui input:hover{
+	background: white; color: black; border: 1px solid black;
+}
+.cus-gui input.selected{
+	background: rgba(117, 163, 209, 0.61);
+}
+.cus-gui div{
+	display: inline-block;
+}
+.cus-gui .hr{
+	height: 100%; background: black; width: 1px; margin: 0px 3px; color: rgba(0,0,0,0);
+}
+.cus-gui .hr::after{
+	content: "|";
+}
 
 .cus-line-tooltip{
 	position: absolute;
@@ -23,7 +41,7 @@ path {
 	border-radius: 3px;
 	overflow: hidden;
 	text-overflow: ellipsis;
-	max-width: 100px;
+	max-width: 150px; white-space: nowrap;
 }
 
 .cus-gantt-tooltip{

@@ -27,26 +27,18 @@ function Graph(div_id){
 		this.zoomprop = {
 			t:[0,0], sc:1
 		}
+		this.zoomTypes = {
+			wheel: 0,
+			select: 1
+		}
+		this.zoomtype = this.zoomTypes.select;
+		this.datasize = 0;
 
 		// Set up zoomimg
 		this.d3zoom = d3.behavior.zoom();
 		this.main_cont.call(this.d3zoom.on("zoom", ()=> {
-			var pt = {x: d3.event.sourceEvent.clientX, y: d3.event.sourceEvent.clientY};
-
-			if(pt.x > this.grapharea.left && pt.x < this.grapharea.left + this.grapharea.width &&
-				pt.y > this.grapharea.top && pt.y < this.grapharea.top + this.grapharea.height){
-				this.zoomprop.t = d3.event.translate;
-				this.zoomprop.sc = d3.event.scale;
-				var m = this.dataprop.delta / this.width;
-				var s = this.dataprop.start - m * this.zoomprop.t[0] / this.zoomprop.sc;
-				var e = s + m * this.width / this.zoomprop.sc;
-
-				// Account for margin
-				var d = e - s;
-				s = s + d * (this.grapharea.left / this.width);
-				e = e - d * (this.grapharea.right / this.width);
-
-				this.updateZoom([s, e]);
+			if(this.zoomtype == this.zoomTypes.wheel || d3.event.sourceEvent.deltaY == undefined){
+				this.delayZoom();
 			}else{
 				this.d3zoom.translate(this.zoomprop.t);
 				this.d3zoom.scale(this.zoomprop.sc);
@@ -55,12 +47,29 @@ function Graph(div_id){
 
 		// GUI container
 		this.gui = this.main_cont.append("div").attr("class", "cus-gui").style("z-index", 999);
+
+		this.gui.append("div").attr("class", "hr");
+		this.gui.append("div").html("Zoom type: ");
+		this.gui.append("input").attr("type", "button").attr("value", "Wheel").attr("class", "zoomtype wheel ")
+			.on("click", () => {
+				d3.selectAll(".zoomtype.selected").classed("selected", false);
+				d3.selectAll(".zoomtype.wheel").classed("selected", true);
+				this.zoomtype = this.zoomTypes.wheel;
+			});
+		this.gui.append("input").attr("type", "button").attr("value", "Select").attr("class", "zoomtype select selected")
+			.on("click", () => {
+				d3.selectAll(".zoomtype.selected").classed("selected", false);
+				d3.selectAll(".zoomtype.select").classed("selected", true);
+				this.zoomtype = this.zoomTypes.select;
+			});
+		this.gui.append("div").attr("class", "hr");
+
 		this.gui.append("input").attr("type", "button").attr("value", "Zoom to fit")
 			.on("click", () => {
 				this.updateZoom([this.dataprop.start, this.dataprop.end]);
 				this.d3zoom.translate([0,0]);
 				this.d3zoom.scale(1);
-			})
+			});
 		this.div_title = this.main_cont.append("div").style("width", "100%").attr("class", "title");
 		this.div_xtitle = this.main_cont.append("div").style("width", "100%").attr("class", "x title");
 		this.div_title.append("h2").attr("class", "center"); this.div_xtitle.append("h3").attr("class", "center");
@@ -121,16 +130,42 @@ function Graph(div_id){
 	}
 
 	this.updateGraphs = function(){
+		this.datasize = 0;
 		this.graphs.forEach((g)=>{
 			g.updateGraph();
 			this.dataprop.start = g.dataprop.start < this.dataprop.start ? g.dataprop.start : this.dataprop.start;
 			this.dataprop.end = g.dataprop.end > this.dataprop.end ? g.dataprop.end : this.dataprop.end;
+			if(g.datasize) this.datasize += g.datasize;
 		});
 		this.dataprop.delta = this.dataprop.end - this.dataprop.start;
 
 		if (!this.initialized) {
 			this.initialized = true;
 			this.updateZoom([this.dataprop.start, this.dataprop.end]);
+		}
+	}
+
+	this.delayZoom = function(){
+		var pt = {x: d3.event.sourceEvent.clientX, y: d3.event.sourceEvent.clientY};
+
+		if(pt.x > this.grapharea.left && pt.x < this.grapharea.left + this.grapharea.width &&
+			pt.y > this.grapharea.top && pt.y < this.grapharea.top + this.grapharea.height){
+			this.zoomprop.t = d3.event.translate;
+			this.zoomprop.sc = d3.event.scale;
+
+			var m = this.dataprop.delta / this.width;
+			var s = this.dataprop.start - m * this.zoomprop.t[0] / this.zoomprop.sc;
+			var e = s + m * this.width / this.zoomprop.sc;
+
+			// Account for margin
+			var d = e - s;
+			s = s + d * (this.grapharea.left / this.width);
+			e = e - d * (this.grapharea.right / this.width);
+
+			this.updateZoom([s, e]);
+		}else{
+			this.d3zoom.translate(this.zoomprop.t);
+			this.d3zoom.scale(this.zoomprop.sc);
 		}
 	}
 
@@ -307,15 +342,18 @@ function sdLine(div_id, id){
 		this.interact_svg = this.super.interact_svg;
 
 		this.dataset = this.dataset == undefined ? [] : this.dataset;
+		this.datasize = this.datasize == undefined ? 0 : this.datasize;
+		// This determines the resolution of the graph shown on screen, represent how many data points can be shown at once.
+		this.resolution = this.resolution == undefined ? 70000 : this.resolution; 
 
-		// some prop		
+		// some prop
 		this.shrinkY = this.shrinkY == undefined ? true : this.shrinkY;
 		this.toolTipLocation = {
 			onMouse: 0,
 			topLeft: 1,
 			topRight: 2
 		}
-		this.snapTooltip = this.toolTipLocation.onMouse;
+		this.snapTooltip = this.toolTipLocation.topLeft;
 
 		this.dataprop = this.dataprop == undefined ? this.super.dataprop : this.dataprop; 
 		this.grapharea = this.grapharea == undefined ? this.super.grapharea : this.grapharea; 
@@ -364,6 +402,7 @@ function sdLine(div_id, id){
 		this.dataprop.end = (this.dataprop.end == undefined || x > this.dataprop.end) ? x : this.dataprop.end;
 		this.dataprop.min = (this.dataprop.min == undefined || y < this.dataprop.min) ? y : this.dataprop.min;
 		this.dataprop.max = (this.dataprop.max == undefined || y > this.dataprop.max) ? y : this.dataprop.max;
+		this.datasize++;
 	}
 
 	this.addSeriesDataSet = function(name, dataset){
@@ -392,12 +431,13 @@ function sdLine(div_id, id){
 
 				v.sdVars.lines.attr("width", 2).attr("color", this.clrArrToDecimal(this.colors[i]))
 					.attr("p1", (d, j) => {
-						if (j == 0) return [0,0];
-						return [this.xScale(v.data[j-1].x), this.yScale(v.data[j-1].y)];
+						// if (j == 0) return [0,0];
+						// return [this.xScale(v.data[j-1].x), this.yScale(v.data[j-1].y)];
+						return [this.xScale(d[0].x), this.yScale(d[0].y)];
 					})
 					.attr("p2", (d, j) => {
-						if (j == 0) return [0,0];
-						return [this.xScale(d.x), this.yScale(d.y)];				
+						// if (j == 0) return [0,0];
+						return [this.xScale(d[1].x), this.yScale(d[1].y)];		
 					})
 			}
 		});
@@ -451,27 +491,33 @@ function sdLine(div_id, id){
 			.attr("transform", "translate("+this.grapharea.left+","+this.grapharea.top+")");
 
 		this.mouse_g_rect
-		.on("mouseover", ()=>{
-			var pt = {x:d3.event.layerX, y:d3.event.layerX};
-			this.mouse_g_line.attr("opacity", 1);
-			this.mouse_g_node.attr("opacity", 1);
-			this.mouse_g_tooltip.style("display", "block");
+		.on("mouseover", ()=>this.onMouseover())
+		.on("mouseleave", ()=>this.onMouseleave())
+		.on("mousemove", ()=>this.onMousemove())
+		.on("click", ()=> this.onItemClick());
+	}
+
+	this.onMouseover = function(){
+		var pt = {x:d3.event.layerX, y:d3.event.layerX};
+		this.mouse_g_line.attr("opacity", 1);
+		this.mouse_g_node.attr("opacity", 1);
+		this.mouse_g_tooltip.style("display", "block");
+	}
+	this.onMouseleave = function(){
+		this.mouse_g_line.attr("opacity", 0);
+		this.mouse_g_node.attr("opacity", 0);
+		this.mouse_g_tooltip.style("display", "none");
+	}
+	this.onMousemove = function(){
+		var pt = {x:d3.event.layerX, y:d3.event.layerY};
+		this.mouse_g_line.attr("transform", "translate(" + (pt.x) +","+this.grapharea.top+")")
+		this.renderTooltip(pt);
+	}
+
+	this.onItemClick = function(){
+		this.dataset.forEach((d, i) => {
+			// print(d.series, d.hovering);
 		})
-		.on("mouseleave", ()=>{
-			this.mouse_g_line.attr("opacity", 0);
-			this.mouse_g_node.attr("opacity", 0);
-			this.mouse_g_tooltip.style("display", "none");
-		})
-		.on("mousemove", ()=>{
-			var pt = {x:d3.event.layerX, y:d3.event.layerY};
-			this.mouse_g_line.attr("transform", "translate(" + (pt.x) +","+this.grapharea.top+")")
-			this.renderTooltip(pt);
-		})
-		.on("click", ()=>{
-			this.dataset.forEach((d, i) => {
-				print(d.series, d.hovering);
-			})
-		});
 	}
 
 	this.renderTooltip = function(mouse_pos){
@@ -519,7 +565,7 @@ function sdLine(div_id, id){
 				return ret + "px";
 			}).html((d, i)=>{
 				if(d.hovering){
-					return d.hovering.data.y;
+					return this.dataset[i].series + ": " + d.hovering.data.y;
 				}else{
 					return "";
 				}
@@ -527,6 +573,44 @@ function sdLine(div_id, id){
 				return this.arrToRGB(this.colors[i], 0.7);
 			}).style("display",(d) => d.hovering ? "block" : "none");
 		}
+	}
+
+	this.formatDataset = function(data, xdomain, max_pts){
+		// based on xdomain, decide how how many elements per group
+		// max_pts is how many total data points can be displayed on graph, this number if for all series.
+		var start = this.bisect(data, xdomain[0]) - 1;
+		var end = this.bisect(data, xdomain[1]);
+		start = start < 0 ? 0 : start;
+		end = end >= data.length ? data.length - 1 : end;
+		var delta = end - start;
+
+		// scale must be integer that is >= 1
+		var scale = 1;
+		max_pts = parseInt(max_pts * (data.length / this.datasize));
+		scale = parseInt(delta / max_pts);
+		scale = scale < 1 ? 1 : scale;
+		scale = parseInt(scale);
+
+		// get the rolling avg array
+		var d = [];
+		for (i = start; i < end - scale; i+=scale){
+			d.push(data.slice(i, i+scale));
+		}
+		d = d.map((group) => {
+			var index = 0;
+			for(var i = 1; i < group.length; i++){
+				index = group[i].y > group[index].y ? i : index; 
+			}
+			return group[index];
+		});
+		
+
+		for (i = 0; i < d.length - 1; i++){
+			d[i] = [d[i], d[i+1]]
+		}
+		d.pop();
+
+		return d;
 	}
 
 	this.renderGraph = function(){
@@ -537,10 +621,16 @@ function sdLine(div_id, id){
 		this.renderYAxis();
 
 		// Render actual graph with data
+
+		var stime = Date.now();
 		this.dataset.forEach((v, i)=>{
-			v.sdVars.lines.attr("width", this.graphprop.strokewidth).data(v.data);
+			v.sdVars.lines.attr("width", this.graphprop.strokewidth).data(this.formatDataset(v.data, this.graphprop.xdomain, this.resolution));
 			v.sdVars.lines.render();
 		});
+		// this.asyncRenderGraph();
+		print("graph render: " + (Date.now() - stime) + "ms");
+
+		if(this.zoomInstances) this.zoomInstances = [];
 
 		// Set blocking frames
 		this.frames.data(this.frame_dim).render();
@@ -627,6 +717,7 @@ function sdGantt(div_id, id){
 		this.interact_svg = this.super.interact_svg;
 
 		this.dataset = this.dataset == undefined ? [] : this.dataset;
+		this.datasize = this.datasize == undefined ? 0 : this.datasize;
 		this.categories = this.categories == undefined ? [] : this.categories;
 		this.pidToColor = this.pidToColor == undefined ? {} : this.pidToColor;
 
@@ -679,6 +770,7 @@ function sdGantt(div_id, id){
 
 		this.dataprop.start = (this.dataprop.start == undefined || start < this.dataprop.start) ? start : this.dataprop.start;
 		this.dataprop.end = (this.dataprop.end == undefined || end > this.dataprop.end) ? end : this.dataprop.end;
+		this.datasize++;
 	}
 
 	this.addDataSet = function(dataset){
@@ -757,21 +849,27 @@ function sdGantt(div_id, id){
 			.attr("transform", "translate("+this.grapharea.left+","+this.grapharea.top+")");
 
 		this.mouse_g_rect
-		.on("mouseover", ()=>{
-			var pt = {x:d3.event.layerX, y:d3.event.layerX};
-			this.mouse_g_node.attr("opacity", 1);
-		})
-		.on("mouseleave", ()=>{
-			this.mouse_g_node.attr("opacity", 0);
-			this.mouse_g_tooltip.style("display", "none");
-		})
-		.on("mousemove", ()=>{
-			var pt = {x:d3.event.layerX, y:d3.event.layerY};
-			this.renderTooltip(pt);
-		})
-		.on("click", ()=>{
-			print(this.hovering);
-		})
+		.on("mouseover", ()=> this.onMouseover())
+		.on("mouseleave", ()=> this.onMouseleave())
+		.on("mousemove", ()=> this.onMousemove())
+		.on("click", ()=> this.onItemClick());
+	}
+
+	this.onMouseover = function(){
+		var pt = {x:d3.event.layerX, y:d3.event.layerX};
+		this.mouse_g_node.attr("opacity", 1);
+	}
+	this.onMouseleave = function(){
+		this.mouse_g_node.attr("opacity", 0);
+		this.mouse_g_tooltip.style("display", "none");
+	}
+	this.onMousemove = function(){
+		var pt = {x:d3.event.layerX, y:d3.event.layerY};
+		this.renderTooltip(pt);
+	}
+
+	this.onItemClick = function(){
+		// print(this.hovering);
 	}
 
 	this.renderTooltip = function(mouse_pos){
@@ -886,4 +984,24 @@ function sdGantt(div_id, id){
 	this.withinGrapharea = this.super.withinGrapharea;
 
 	this.consturctor(div_id, id);
+}
+
+var lastTimer = undefined;
+var logTime = true;
+function timer(name){
+	if(!logTime) return;
+	var ret = "";
+	if(lastTimer){
+		var a = Date.now();
+		ret = a - lastTimer;
+		lastTimer = a;
+		print(name + ": " + ret +"ms");
+	}else{
+		lastTimer = Date.now();
+	}
+	return ret
+}
+
+function sleep(ms) {
+	return new Promise(resolve => setTimeout(resolve, ms));
 }
