@@ -70,6 +70,8 @@ function Graph(div_id){
 				this.d3zoom.translate([0,0]);
 				this.d3zoom.scale(1);
 			});
+
+		// Titles
 		this.div_title = this.main_cont.append("div").style("width", "100%").attr("class", "title");
 		this.div_xtitle = this.main_cont.append("div").style("width", "100%").attr("class", "x title");
 		this.div_title.append("h2").attr("class", "center"); this.div_xtitle.append("h3").attr("class", "center");
@@ -124,9 +126,65 @@ function Graph(div_id){
 	}
 
 	this.setMouseEffects = function(){
+		// Mouse effect container
+		this.interact_svg = this.main_cont.append("svg").attr("class", "mouse-over-effects")
+			.attr("width", "100%").attr("height", "100%")
+			.style("position", "absolute").style("top", 0).style("left", 0).style("z-index", 900);
+
+		this.mouse_g = this.interact_svg.append("svg").append("g");
+
+		this.mouse_g_rect = this.interact_svg.append("rect").attr("opacity", 0)
+			.attr("height", "100%")
+			.attr("width", "100%");
+
+		this.mousing_over = -1; // indicates which graph it's currently hovering
+		this.mouse_g_rect
+		.on("mousemove", ()=>{
+			var pt = {x: d3.event.layerX, y: d3.event.layerY};
+
+			// Checking mouseover/mouseleave
+			var inGraph = false;
+
+			this.graphs.forEach((g, i) => {
+				if(this.isWithinGraph(i, pt)){
+					if(this.mousing_over != -1) this.graphs[this.mousing_over].onMouseleave();
+					g.onMouseover();
+					this.mousing_over = i;
+					inGraph = true;
+				}
+			});
+
+			if(!inGraph && this.mousing_over != -1){
+				this.graphs[this.mousing_over].onMouseleave();
+				this.mousing_over = -1;
+			}
+
+			// Checking mousemove
+			this.graphs.forEach((g, i) => {
+				if(this.isWithinGraph(i, pt)){
+					var p = {x: d3.event.layerX, y: (d3.event.layerY - g.plotoffset.y)}
+					g.onMousemove(p);
+				}
+			});
+		})
+		.on("click", ()=> {
+			this.graphs.forEach((g, i) => {
+				if(this.isWithinGraph(i, {x: d3.event.layerX, y: d3.event.layerY})){
+					g.onItemClick();
+				}
+			});
+		});
+
 		this.graphs.forEach((g)=>{
 			if(g.setMouseEffects) g.setMouseEffects();
 		})
+	}
+
+	this.isWithinGraph = function(index, pt){
+		var ret = true;
+		ret &= pt.x > this.graphs[index].grapharea.left && pt.x < this.graphs[index].grapharea.left + this.graphs[index].grapharea.width;
+		ret &= pt.y > this.graphs[index].plotoffset.y + this.graphs[index].grapharea.top && pt.y < this.graphs[index].plotoffset.y + this.graphs[index].grapharea.top + this.graphs[index].grapharea.height; 
+		return ret;
 	}
 
 	this.updateGraphs = function(){
@@ -200,7 +258,7 @@ function Graph(div_id){
 
 		var h = this.grapharea.height / this.graphs.length
 		this.graph_divs.style("height", (d,i)=>{
-			this.graphs[i].plotoffset.y = this.grapharea.top + i * h;
+			this.graphs[i].plotoffset.y = (i == 0 ? 0 : this.grapharea.top) + i * h;
 			var ret;
 			if (i == 0){
 				ret = this.grapharea.top + h;
@@ -508,15 +566,15 @@ function sdLine(div_id, id){
 		this.mouse_g_node.attr("opacity", 0);
 		this.mouse_g_tooltip.style("display", "none");
 	}
-	this.onMousemove = function(){
-		var pt = {x:d3.event.layerX, y:d3.event.layerY};
+	this.onMousemove = function(pt){
+		pt = pt == undefined ? {x:d3.event.layerX, y:d3.event.layerY} : pt;
 		this.mouse_g_line.attr("transform", "translate(" + (pt.x) +","+this.grapharea.top+")")
 		this.renderTooltip(pt);
 	}
 
 	this.onItemClick = function(){
 		this.dataset.forEach((d, i) => {
-			// print(d.series, d.hovering);
+			print(d.series, d.hovering);
 		})
 	}
 
@@ -863,13 +921,13 @@ function sdGantt(div_id, id){
 		this.mouse_g_node.attr("opacity", 0);
 		this.mouse_g_tooltip.style("display", "none");
 	}
-	this.onMousemove = function(){
-		var pt = {x:d3.event.layerX, y:d3.event.layerY};
+	this.onMousemove = function(pt){
+		pt = pt == undefined ? {x:d3.event.layerX, y:d3.event.layerY} : pt;
 		this.renderTooltip(pt);
 	}
 
 	this.onItemClick = function(){
-		// print(this.hovering);
+		print(this.hovering);
 	}
 
 	this.renderTooltip = function(mouse_pos){
