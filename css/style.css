@@ -12,6 +12,11 @@ path {
     shape-rendering: crispEdges;
 }
 
+.hidden{
+	display: none;
+	opacity: 0;
+}
+
 .cus-gui {
 	position: absolute; right: 5px; top: 5px;
 }

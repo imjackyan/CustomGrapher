@@ -29,15 +29,20 @@ function Graph(div_id){
 		}
 		this.zoomTypes = {
 			wheel: 0,
-			select: 1
+			select: 1,
+			pan: 2
 		}
-		this.zoomtype = this.zoomTypes.select;
+		this.zoomtype = this.zoomTypes.wheel;
 		this.datasize = 0;
+		this.dragdata = {
+			start: false,
+			end: false
+		}
 
 		// Set up zoomimg
 		this.d3zoom = d3.behavior.zoom();
 		this.main_cont.call(this.d3zoom.on("zoom", ()=> {
-			if(this.zoomtype == this.zoomTypes.wheel || d3.event.sourceEvent.deltaY == undefined){
+			if(this.zoomtype == this.zoomTypes.wheel || (this.zoomtype == this.zoomTypes.pan && d3.event.sourceEvent.deltaY == undefined)){
 				this.delayZoom();
 			}else{
 				this.d3zoom.translate(this.zoomprop.t);
@@ -49,19 +54,30 @@ function Graph(div_id){
 		this.gui = this.main_cont.append("div").attr("class", "cus-gui").style("z-index", 999);
 
 		this.gui.append("div").attr("class", "hr");
-		this.gui.append("div").html("Zoom type: ");
-		this.gui.append("input").attr("type", "button").attr("value", "Wheel").attr("class", "zoomtype wheel ")
+		this.gui.append("div").html("Control type: ");
+		this.gui.append("input").attr("type", "button").attr("value", "Wheel").attr("class", "zoomtype wheel selected")
 			.on("click", () => {
 				d3.selectAll(".zoomtype.selected").classed("selected", false);
 				d3.selectAll(".zoomtype.wheel").classed("selected", true);
+				d3.selectAll(".zoomtype.pan").classed("selected", false);
 				this.zoomtype = this.zoomTypes.wheel;
 			});
-		this.gui.append("input").attr("type", "button").attr("value", "Select").attr("class", "zoomtype select selected")
+		this.gui.append("input").attr("type", "button").attr("value", "Select").attr("class", "zoomtype select")
 			.on("click", () => {
 				d3.selectAll(".zoomtype.selected").classed("selected", false);
 				d3.selectAll(".zoomtype.select").classed("selected", true);
+				d3.selectAll(".zoomtype.pan").classed("selected", false);
 				this.zoomtype = this.zoomTypes.select;
 			});
+		// Pan requires semouseeffects
+		this.gui.append("input").attr("type", "button").attr("value", "Pan").attr("class", "zoomtype pan")
+			.on("click", () => {
+				d3.selectAll(".zoomtype.selected").classed("selected", false);
+				d3.selectAll(".zoomtype.select").classed("selected", false);
+				d3.selectAll(".zoomtype.pan").classed("selected", true);
+				this.zoomtype = this.zoomTypes.pan;
+			});
+
 		this.gui.append("div").attr("class", "hr");
 
 		this.gui.append("input").attr("type", "button").attr("value", "Zoom to fit")
@@ -116,6 +132,8 @@ function Graph(div_id){
 			}
 			this.graphs[i] = g;
 		}
+
+		this.setMouseEffects();
 	}
 
 	this.getGraph = function(index){
@@ -132,8 +150,11 @@ function Graph(div_id){
 			.style("position", "absolute").style("top", 0).style("left", 0).style("z-index", 900);
 
 		this.mouse_g = this.interact_svg.append("svg").append("g");
+		this.mouse_g_drag_rect = this.mouse_g.append("svg:rect").attr("opacity", 0)
+			.attr("height", "100%")
+			.attr("width", "100%");
 
-		this.mouse_g_rect = this.interact_svg.append("rect").attr("opacity", 0)
+		this.mouse_g_rect = this.interact_svg.append("svg:rect").attr("opacity", 0)
 			.attr("height", "100%")
 			.attr("width", "100%");
 
@@ -159,13 +180,23 @@ function Graph(div_id){
 				this.mousing_over = -1;
 			}
 
-			// Checking mousemove
+			// Checking point/hovering effects
 			this.graphs.forEach((g, i) => {
 				if(this.isWithinGraph(i, pt)){
 					var p = {x: d3.event.layerX, y: (d3.event.layerY - g.plotoffset.y)}
 					g.onMousemove(p);
 				}
 			});
+
+			// Checking drag
+			if(this.dragdata.start && this.zoomtype == this.zoomTypes.select){
+				this.mouse_g_drag_rect.attr("opacity", "0.3")
+					.attr("width", Math.abs(pt.x - this.dragdata.start.x))
+					.attr("height", this.grapharea.height)
+					.attr("transform", "translate("+ Math.min(pt.x, this.dragdata.start.x) +","+ this.grapharea.top +")")
+			}else{
+				this.mouse_g_drag_rect.attr("opacity", "0")
+			}
 		})
 		.on("click", ()=> {
 			this.graphs.forEach((g, i) => {
@@ -173,11 +204,52 @@ function Graph(div_id){
 					g.onItemClick();
 				}
 			});
+		})
+		.on("mousedown", ()=>{
+			this.dragdata.start = {
+				x: d3.event.layerX,
+				y: d3.event.layerY
+			}
+		})
+		.on("mouseup", ()=>{
+			this.dragdata.end = {
+				x: d3.event.layerX,
+				y: d3.event.layerY
+			}
+			if(this.zoomtype == this.zoomTypes.select) this.setXDomainWithPt(this.dragdata.start.x, this.dragdata.end.x);
+			this.dragdata.start = false;
+			this.dragdata.end = false;
 		});
 
 		this.graphs.forEach((g)=>{
 			if(g.setMouseEffects) g.setMouseEffects();
 		})
+	}
+
+	this.setXDomainWithPt = function(x1, x2){
+		var min = Math.min(x1, x2);
+		var max = Math.max(x1, x2);
+		if(this.graphs.length > 0){
+			var xdomain = [
+				this.graphs[0].xScale.invert(min),
+				this.graphs[0].xScale.invert(max)
+			];
+			this.updateZoom(xdomain);
+			this.setZoompropWithXDomain(xdomain);
+			this.d3zoom.translate(this.zoomprop.t);
+			this.d3zoom.scale(this.zoomprop.sc);
+		}
+	}
+	this.setZoompropWithXDomain = function(xdomain){
+		var s = xdomain[0];
+		var e = xdomain[1];
+		var m = this.dataprop.delta / this.width;
+
+		if(this.graphs.length > 0) {
+			this.zoomprop.t[0] = this.graphs[0].xScale(0);
+			// Derived from delayZoom()
+			this.zoomprop.sc = m * (this.width - this.zoomprop.t[0] - this.grapharea.right) / (e - this.dataprop.start);
+		}
 	}
 
 	this.isWithinGraph = function(index, pt){
@@ -574,7 +646,7 @@ function sdLine(div_id, id){
 
 	this.onItemClick = function(){
 		this.dataset.forEach((d, i) => {
-			print(d.series, d.hovering);
+			// print(d.series, d.hovering);
 		})
 	}
 
@@ -927,7 +999,7 @@ function sdGantt(div_id, id){
 	}
 
 	this.onItemClick = function(){
-		print(this.hovering);
+		// print(this.hovering);
 	}
 
 	this.renderTooltip = function(mouse_pos){

@@ -23,7 +23,7 @@
 		var ct = ["d3d", "mm", "vr"]
 		var ns = ["watchdog.exe", "m", "k"]
 		var s = [0,0,0]
-		for(var i = 0; i < 1000; i++){
+		for(var i = 100; i < 1000; i++){
 			// line.addData(ns[i%2], 3*i+i%2, Math.random()*100);
 			line.addData(ns[i%2], 3*i+i%2, Math.sin(i/(10+i%2*5))*100);
 			line2.addData(ns[i%2], 3*i+i%2, Math.random()*100);
@@ -33,7 +33,6 @@
 			s[i%3] += inc + Math.random()*20;
 		}
 
-		t.setMouseEffects();
 		t.setGraphMargin(100,100,100,100);
 		t.updateGraphs();
 		t.setXTitle("Time (ms)");
