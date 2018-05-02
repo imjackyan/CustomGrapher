@@ -285,7 +285,6 @@ function Graph(div_id){
 		if(this.graphs.length > 0) {
 			this.zoomprop.t[0] = (this.width - this.grapharea.right) * (s - this.dataprop.start) + this.grapharea.left * (e - this.dataprop.start);
 			this.zoomprop.t[0] /= (s - e);
-			print(this.zoomprop.t[0], this.graphs[0].xScale(0))
 
 			this.zoomprop.t[0] = this.graphs[0].xScale(0);
 			// Derived from delayZoom()
@@ -754,7 +753,7 @@ function sdLine(div_id, id){
 		// based on xdomain, decide how how many elements per group
 		// max_pts is how many total data points can be displayed on graph, this number if for all series.
 		var start = this.bisect(data, xdomain[0]) - 1;
-		var end = this.bisect(data, xdomain[1]);
+		var end = this.bisect(data, xdomain[1]) + 10;
 		start = start < 0 ? 0 : start;
 		end = end >= data.length ? data.length - 1 : end;
 		var delta = end - start;
