@@ -206,19 +206,19 @@ function Graph(div_id){
 			});
 		})
 		.on("mousedown", ()=>{
-			this.dragdata.start = {
-				x: d3.event.layerX,
-				y: d3.event.layerY
+			var pt = {x: d3.event.layerX, y: d3.event.layerY};
+			if(this.isWithinGraph(-1, pt)){
+				this.dragdata.start = pt;
 			}
 		})
 		.on("mouseup", ()=>{
-			this.dragdata.end = {
-				x: d3.event.layerX,
-				y: d3.event.layerY
+			var pt = {x: d3.event.layerX, y: d3.event.layerY};
+			if(this.isWithinGraph(-1, pt)){
+				this.dragdata.end = pt;
+				if(this.zoomtype == this.zoomTypes.select) this.setXDomainWithPt(this.dragdata.start.x, this.dragdata.end.x);
+				this.dragdata.start = false;
+				this.dragdata.end = false;
 			}
-			if(this.zoomtype == this.zoomTypes.select) this.setXDomainWithPt(this.dragdata.start.x, this.dragdata.end.x);
-			this.dragdata.start = false;
-			this.dragdata.end = false;
 		});
 
 		this.graphs.forEach((g)=>{
@@ -253,6 +253,11 @@ function Graph(div_id){
 	}
 
 	this.isWithinGraph = function(index, pt){
+		if(index == -1){
+			// -1 means if it's in any graph at all
+			return (pt.x > this.grapharea.left && pt.x < this.grapharea.left + this.grapharea.width &&
+					pt.y > this.grapharea.top && pt.y < this.grapharea.top + this.grapharea.height)
+		}
 		var ret = true;
 		ret &= pt.x > this.graphs[index].grapharea.left && pt.x < this.graphs[index].grapharea.left + this.graphs[index].grapharea.width;
 		ret &= pt.y > this.graphs[index].plotoffset.y + this.graphs[index].grapharea.top && pt.y < this.graphs[index].plotoffset.y + this.graphs[index].grapharea.top + this.graphs[index].grapharea.height; 
@@ -278,8 +283,7 @@ function Graph(div_id){
 	this.delayZoom = function(){
 		var pt = {x: d3.event.sourceEvent.clientX, y: d3.event.sourceEvent.clientY};
 
-		if(pt.x > this.grapharea.left && pt.x < this.grapharea.left + this.grapharea.width &&
-			pt.y > this.grapharea.top && pt.y < this.grapharea.top + this.grapharea.height){
+		if(this.isWithinGraph(-1, pt)){
 			this.zoomprop.t = d3.event.translate;
 			this.zoomprop.sc = d3.event.scale;
 
