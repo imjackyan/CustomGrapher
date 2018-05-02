@@ -50,47 +50,7 @@ function Graph(div_id){
 			}
 		}));
 
-		// GUI container
-		this.gui = this.main_cont.append("div").attr("class", "cus-gui").style("z-index", 999);
-
-		this.gui.append("div").attr("class", "hr");
-		this.gui.append("div").html("Control type: ");
-		this.gui.append("input").attr("type", "button").attr("value", "Wheel").attr("class", "zoomtype wheel selected")
-			.on("click", () => {
-				d3.selectAll(".zoomtype.selected").classed("selected", false);
-				d3.selectAll(".zoomtype.wheel").classed("selected", true);
-				d3.selectAll(".zoomtype.pan").classed("selected", false);
-				this.zoomtype = this.zoomTypes.wheel;
-			});
-		this.gui.append("input").attr("type", "button").attr("value", "Select").attr("class", "zoomtype select")
-			.on("click", () => {
-				d3.selectAll(".zoomtype.selected").classed("selected", false);
-				d3.selectAll(".zoomtype.select").classed("selected", true);
-				d3.selectAll(".zoomtype.pan").classed("selected", false);
-				this.zoomtype = this.zoomTypes.select;
-			});
-		// Pan requires semouseeffects
-		this.gui.append("input").attr("type", "button").attr("value", "Pan").attr("class", "zoomtype pan")
-			.on("click", () => {
-				d3.selectAll(".zoomtype.selected").classed("selected", false);
-				d3.selectAll(".zoomtype.select").classed("selected", false);
-				d3.selectAll(".zoomtype.pan").classed("selected", true);
-				this.zoomtype = this.zoomTypes.pan;
-			});
-
-		this.gui.append("div").attr("class", "hr");
-
-		this.gui.append("input").attr("type", "button").attr("value", "Zoom to fit")
-			.on("click", () => {
-				this.updateZoom([this.dataprop.start, this.dataprop.end]);
-				this.d3zoom.translate([0,0]);
-				this.d3zoom.scale(1);
-			});
-
-		// Titles
-		this.div_title = this.main_cont.append("div").style("width", "100%").attr("class", "title");
-		this.div_xtitle = this.main_cont.append("div").style("width", "100%").attr("class", "x title");
-		this.div_title.append("h2").attr("class", "center"); this.div_xtitle.append("h3").attr("class", "center");
+		this.setGUI();
 	}
 
 	this.setXTitle = function(val){
@@ -141,6 +101,77 @@ function Graph(div_id){
 			return this.graphs[index];
 		}
 		return false;
+	}
+
+	this.setGUI = function(){
+		// GUI container
+		this.gui = this.main_cont.append("div").attr("class", "cus-gui").style("z-index", 999);
+
+		// this.gui.append("div").attr("class", "hr");
+		// this.gui.append("div").html("Control type: ");
+
+		// Wheel btn
+		this.gui.append("input").attr("type", "button").attr("value", "Wheel").attr("class", "zoomtype wheel selected")
+			.on("click", () => {
+				d3.selectAll(".zoomtype.selected").classed("selected", false);
+				d3.selectAll(".zoomtype.wheel").classed("selected", true);
+				d3.selectAll(".zoomtype.pan").classed("selected", false);
+				this.zoomtype = this.zoomTypes.wheel;
+			})
+			.on("mouseover", ()=> this.gui_tip.show("Zoom with wheel, and pan by dragging"))
+			.on("mouseleave", ()=> this.gui_tip.hide());
+
+		// Select btn
+		this.gui.append("input").attr("type", "button").attr("value", "Select").attr("class", "zoomtype select")
+			.on("click", () => {
+				d3.selectAll(".zoomtype.selected").classed("selected", false);
+				d3.selectAll(".zoomtype.select").classed("selected", true);
+				d3.selectAll(".zoomtype.pan").classed("selected", false);
+				this.zoomtype = this.zoomTypes.select;
+			})
+			.on("mouseover", ()=> this.gui_tip.show("Zoom by selecting a section of the graph"))
+			.on("mouseleave", ()=> this.gui_tip.hide());
+
+		// Pan btn requires semouseeffects
+		this.gui.append("input").attr("type", "button").attr("value", "Pan").attr("class", "zoomtype pan")
+			.on("click", () => {
+				d3.selectAll(".zoomtype.selected").classed("selected", false);
+				d3.selectAll(".zoomtype.select").classed("selected", false);
+				d3.selectAll(".zoomtype.pan").classed("selected", true);
+				this.zoomtype = this.zoomTypes.pan;
+			})
+			.on("mouseover", ()=> this.gui_tip.show("Pan by dragging"))
+			.on("mouseleave", ()=> this.gui_tip.hide());
+
+		// Tip on hovering buttons
+		this.gui_tip = this.gui.append("div").html("tip").attr("class", "hidden").style({
+			"position":"absolute", "left" : 0, "transition": "0.3 ease",
+			"top": "100%", "width":"100%", "text-align":"center", "color" : "grey"
+		});
+		this.gui_tip.show = (msg) => {
+			this.gui_tip.html(msg);
+			this.gui_tip.classed("hidden", false);
+		}
+		this.gui_tip.hide = () => {
+			this.gui_tip.classed("hidden", true);
+		}
+
+		this.gui.append("div").attr("class", "hr");
+
+		// Reset zoom btn
+		this.gui.append("input").attr("type", "button").attr("value", "Zoom to fit")
+			.on("click", () => {
+				this.updateZoom([this.dataprop.start, this.dataprop.end]);
+				this.d3zoom.translate([0,0]);
+				this.d3zoom.scale(1);
+			})
+			.on("mouseover", ()=> this.gui_tip.show("Reset graphs to initial zoom"))
+			.on("mouseleave", ()=> this.gui_tip.hide());
+
+		// Titles
+		this.div_title = this.main_cont.append("div").style("width", "100%").attr("class", "title");
+		this.div_xtitle = this.main_cont.append("div").style("width", "100%").attr("class", "x title");
+		this.div_title.append("h2").attr("class", "center"); this.div_xtitle.append("h3").attr("class", "center");
 	}
 
 	this.setMouseEffects = function(){
