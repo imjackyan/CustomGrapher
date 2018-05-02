@@ -267,7 +267,7 @@ function Graph(div_id){
 	this.updateGraphs = function(){
 		this.datasize = 0;
 		this.graphs.forEach((g)=>{
-			g.updateGraph();
+			if(this.initialized) g.updateGraph();
 			this.dataprop.start = g.dataprop.start < this.dataprop.start ? g.dataprop.start : this.dataprop.start;
 			this.dataprop.end = g.dataprop.end > this.dataprop.end ? g.dataprop.end : this.dataprop.end;
 			if(g.datasize) this.datasize += g.datasize;
@@ -755,14 +755,13 @@ function sdLine(div_id, id){
 		this.renderYAxis();
 
 		// Render actual graph with data
-
 		var stime = Date.now();
 		this.dataset.forEach((v, i)=>{
 			v.sdVars.lines.attr("width", this.graphprop.strokewidth).data(this.formatDataset(v.data, this.graphprop.xdomain, this.resolution));
 			v.sdVars.lines.render();
 		});
-		// this.asyncRenderGraph();
 		print("graph render: " + (Date.now() - stime) + "ms");
+		console.trace();
 
 		if(this.zoomInstances) this.zoomInstances = [];
 
