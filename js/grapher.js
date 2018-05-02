@@ -1,4 +1,5 @@
 print = console.log;
+stack = console.trace;
 
 function Graph(div_id){
 	this.constructor = function(){
@@ -161,9 +162,7 @@ function Graph(div_id){
 		// Reset zoom btn
 		this.gui.append("input").attr("type", "button").attr("value", "Zoom to fit")
 			.on("click", () => {
-				this.updateZoom([this.dataprop.start, this.dataprop.end]);
-				this.d3zoom.translate([0,0]);
-				this.d3zoom.scale(1);
+				this.resetZoom();
 			})
 			.on("mouseover", ()=> this.gui_tip.show("Reset graphs to initial zoom"))
 			.on("mouseleave", ()=> this.gui_tip.hide());
@@ -257,6 +256,13 @@ function Graph(div_id){
 		})
 	}
 
+	this.resetZoom = function(){
+		this.updateZoom([this.dataprop.start, this.dataprop.end])
+		this.setZoompropWithXDomain([this.dataprop.start, this.dataprop.end])
+		this.d3zoom.translate(this.zoomprop.t);
+		this.d3zoom.scale(this.zoomprop.sc);
+	}
+
 	this.setXDomainWithPt = function(x1, x2){
 		var min = Math.min(x1, x2);
 		var max = Math.max(x1, x2);
@@ -277,6 +283,10 @@ function Graph(div_id){
 		var m = this.dataprop.delta / this.width;
 
 		if(this.graphs.length > 0) {
+			this.zoomprop.t[0] = (this.width - this.grapharea.right) * (s - this.dataprop.start) + this.grapharea.left * (e - this.dataprop.start);
+			this.zoomprop.t[0] /= (s - e);
+			print(this.zoomprop.t[0], this.graphs[0].xScale(0))
+
 			this.zoomprop.t[0] = this.graphs[0].xScale(0);
 			// Derived from delayZoom()
 			this.zoomprop.sc = m * (this.width - this.zoomprop.t[0] - this.grapharea.right) / (e - this.dataprop.start);
@@ -307,7 +317,7 @@ function Graph(div_id){
 
 		if (!this.initialized) {
 			this.initialized = true;
-			this.updateZoom([this.dataprop.start, this.dataprop.end]);
+			this.resetZoom();
 		}
 	}
 
@@ -323,7 +333,7 @@ function Graph(div_id){
 			var e = s + m * this.width / this.zoomprop.sc;
 
 			// Account for margin
-			var d = e - s;
+			var d = m * this.width / this.zoomprop.sc; // s - e
 			s = s + d * (this.grapharea.left / this.width);
 			e = e - d * (this.grapharea.right / this.width);
 
@@ -792,7 +802,6 @@ function sdLine(div_id, id){
 			v.sdVars.lines.render();
 		});
 		print("graph render: " + (Date.now() - stime) + "ms");
-		console.trace();
 
 		if(this.zoomInstances) this.zoomInstances = [];
 
