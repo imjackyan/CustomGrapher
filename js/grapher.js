@@ -245,7 +245,10 @@ function Graph(div_id){
 			var pt = {x: d3.event.layerX, y: d3.event.layerY};
 			if(this.isWithinGraph(-1, pt)){
 				this.dragdata.end = pt;
-				if(this.zoomtype == this.zoomTypes.select) this.setXDomainWithPt(this.dragdata.start.x, this.dragdata.end.x);
+				if(this.zoomtype == this.zoomTypes.select &&
+					Math.abs(this.dragdata.start.x - this.dragdata.end.x) > 1 &&
+					Math.abs(this.dragdata.start.y - this.dragdata.end.y) > 1) 
+					this.setXDomainWithPt(this.dragdata.start.x, this.dragdata.end.x);
 				this.dragdata.start = false;
 				this.dragdata.end = false;
 			}
@@ -550,14 +553,16 @@ function sdLine(div_id, id){
 		this.yAxisGroup = this.svg.append("g").attr("class", "y axis");
 	}
 
-	this.addData = function(series, x, y){
+	this.addData = function(series, x, y, proc){
 		var exists = false;
+		proc = proc == undefined ? "" : proc;
 		for(var i = 0; i < this.dataset.length; i++){
 			var v = this.dataset[i];
 			if(v.series == series){
 				v.data.push({
 					x:x,
-					y:y
+					y:y,
+					proc:proc
 				});
 				exists = true;
 				break;
@@ -567,7 +572,7 @@ function sdLine(div_id, id){
 		if(!exists){
 			this.dataset.push({
 				series:series,
-				data:[{x:x, y:y}],
+				data:[{x:x, y:y, proc:proc}],
 				sdVars:{} // holds stardust variables
 			})
 		}
@@ -581,8 +586,8 @@ function sdLine(div_id, id){
 
 	this.addSeriesDataSet = function(name, dataset){
     	for(var i = 0; i < dataset.length; i++){
-    		if(dataset[i].x != null && dataset[i].y != null){
-    			this.addData(name, dataset[i].x, dataset[i].y);
+    		if(dataset[i].x != null && dataset[i].y != null && dataset[i].proc != null){
+    			this.addData(name, dataset[i].x, dataset[i].y, dataset[i].proc);
     		}else{
     			return false;
     		}
@@ -690,7 +695,7 @@ function sdLine(div_id, id){
 
 	this.onItemClick = function(){
 		this.dataset.forEach((d, i) => {
-			// print(d.series, d.hovering);
+			print(d.series, d.hovering);
 		})
 	}
 
@@ -1015,6 +1020,9 @@ function sdGantt(div_id, id){
 		this.mouse_g_tooltip = d3.select("#"+this.div_id).select(".mouse-tooltip-div")
 			.append("div")
 			.style("display", "none").attr("class", "cus-gantt-tooltip");
+		this.mouse_g_highlight = d3.select("#"+this.div_id).select(".mouse-tooltip-div")
+			.append("div")
+			.style("display", "none").attr("class", "cus-gantt-highlight");
 
 		this.mouse_g_rect = this.interact_svg.append("svg:rect").attr("opacity", 0)
 			.attr("width", this.grapharea.width).attr("height", this.grapharea.height)
@@ -1041,7 +1049,7 @@ function sdGantt(div_id, id){
 	}
 
 	this.onItemClick = function(){
-		// print(this.hovering);
+		print(this.hovering);
 	}
 
 	this.renderTooltip = function(mouse_pos){
@@ -1063,6 +1071,7 @@ function sdGantt(div_id, id){
 							if(mouse_pos.x > pt.start && mouse_pos.x < pt.end){
 								this.hovering = pt;
 								this.hovering.top = i*h;
+								this.hovering.bottom = (i+1)*h;
 								this.hovering.data = v;
 							}
 						}
@@ -1089,8 +1098,17 @@ function sdGantt(div_id, id){
 					.style("top", () => {
 						return this.hovering.top - this.mouse_g_tooltip[0][0].getBoundingClientRect().height - 7 + "px";
 					});
+				this.mouse_g_highlight
+					.style({
+						"display": "block",
+						"top": this.hovering.top +"px",
+						"left": this.hovering.start + "px",
+						"width": (this.hovering.end - this.hovering.start) +"px",
+						"height": (this.hovering.bottom - this.hovering.top) +"px"
+					})
 			}else{
 				this.mouse_g_tooltip.style("display", "none");
+				this.mouse_g_highlight.style("display", "none");
 			}
 		}
 

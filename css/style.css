@@ -75,6 +75,14 @@ path {
 	top: 100%;
 	left: 0;
 }
+@keyframes whitepulse {
+    0% {background-color: rgba(255,255,255,0);}
+    50% {background-color: rgba(255,255,255,0.5);}
+    0% {background-color: rgba(255,255,255,0);}
+}
+.cus-gantt-highlight{
+	position: absolute; animation-name: whitepulse; animation-duration: 2s; animation-iteration-count: infinite; 
+}
 
 .cus-subplot{
 	margin:0px;

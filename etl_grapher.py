@@ -20,7 +20,7 @@ def parseDMA(path):
         for index, header in enumerate(column_headers):
             ch_index[header] = index;
 
-        headers = ["engineType", "pid", "timeStart", "timeEnd", "processName"]
+        headers = ["engineType", "pid", "timeStart", "timeEnd", "processName", "nodeOrdinal"]
         hk = list(ch_index.keys())
         missing_headers  =[h for h in headers if h not in hk]
         if len(missing_headers) > 0:
@@ -34,8 +34,9 @@ def parseDMA(path):
             if len(vals) < 5:
                 continue
 
+            category = vals[ch_index["engineType"]] +" "+ vals[ch_index["nodeOrdinal"]]
             gantt.append(dict(
-                category = vals[ch_index["engineType"]],
+                category = category,
                 pid = int(vals[ch_index["pid"]]),
                 start = float(vals[ch_index["timeStart"]]),
                 end = float(vals[ch_index["timeEnd"]]),
@@ -70,9 +71,14 @@ def parseCPU(path):
             while(len(lines) <= cpu):
                 lines.append(dict(name="CPU {}".format(len(lines)), data=[]))
 
+            y = float(vals[ch_index["Delta"]])
+            if len(lines[cpu]["data"]) > 0 and lines[cpu]["data"][-1]["proc"] == "Idle":
+                y = 0
+
             lines[cpu]["data"].append(dict(
                 x = float(vals[ch_index["TS"]]),
-                y = float(vals[ch_index["Delta"]])
+                y = y,
+                proc = vals[ch_index["Proc"]]
             ))
             if c != 0 and i > c:
                 break
