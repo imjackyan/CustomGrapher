@@ -11,18 +11,30 @@
 	<div id="graph" style="position:absolute; margin:1%; width:95%; height:95%;"></div>
 	<script type="text/javascript">
 		var t = new Graph("graph");
+
+        var lineseries = {{template.lines}};
 		var line = t.addGraph(t.graphType.line);
-		var gantt = t.addGraph(t.graphType.gantt);
+
+		var gantts_data = {{template.gantt}}
+		var gantts = [];
+		for(var i = 0; i < gantts_data.length; i++){
+			var g = t.addGraph(t.graphType.gantt);
+			gantts.push(g);
+		}
+
 		t.initializeGraphs();
 
-		line = t.getGraph(line);
-		gantt = t.getGraph(gantt);
 
-		gantt.addDataSet({{template.gantt}});
-        var lineseries = {{template.lines}};
+		line = t.getGraph(line);
         for(var i = 0; i < lineseries.length; i++){
             line.addSeriesDataSet(lineseries[i].name, lineseries[i].data);
         }
+
+		for(var i = 0; i < gantts.length; i++){
+			gantts[i] = t.getGraph(gantts[i]);
+			gantts[i].addDataSet(gantts_data[i]);
+		}
+
 
 		t.setGraphMargin(100,100,100,100);
 		t.updateGraphs();

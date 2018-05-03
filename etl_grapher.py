@@ -12,15 +12,16 @@ args = parser.parse_args()
 
 
 def parseDMA(path):
-    gantt = []
+    gantts = {}
     with open(path, "r") as f:
         data = f.read().split("\n")
         ch_index = {}
         column_headers = data[0].split(",")
+        l = len(column_headers)
         for index, header in enumerate(column_headers):
             ch_index[header] = index;
 
-        headers = ["engineType", "pid", "timeStart", "timeEnd", "processName", "nodeOrdinal"]
+        headers = ["engineType", "pid", "timeStart", "timeEnd", "processName", "nodeOrdinalFriendlyName", "dxAdapter"]
         hk = list(ch_index.keys())
         missing_headers  =[h for h in headers if h not in hk]
         if len(missing_headers) > 0:
@@ -31,18 +32,26 @@ def parseDMA(path):
         for i, line in enumerate(data[1:]):
             vals = line.split(",")
 
-            if len(vals) < 5:
+            if len(vals) < l:
                 continue
 
-            category = vals[ch_index["engineType"]] +" "+ vals[ch_index["nodeOrdinal"]]
-            gantt.append(dict(
-                category = category,
+            adapter = vals[ch_index["dxAdapter"]]
+            if adapter not in gantts:
+                gantts[adapter] = []
+
+            engine = ""
+            # engine = vals[ch_index["engineType"]] +" "
+            engine += vals[ch_index["nodeOrdinalFriendlyName"]]
+            
+            gantts[adapter].append(dict(
+                category = engine,
                 pid = int(vals[ch_index["pid"]]),
                 start = float(vals[ch_index["timeStart"]]),
                 end = float(vals[ch_index["timeEnd"]]),
-                pname = vals[ch_index["processName"]],
+                pname = vals[ch_index["processName"]]
             ))
-    return gantt
+
+    return [v for k,v in gantts.items()]
 
 def parseCPU(path):
     lines = []
@@ -51,6 +60,7 @@ def parseCPU(path):
         data = f.read().split("\n")
         ch_index = {}
         column_headers = data[0].split(",")
+        l = len(column_headers)
         for index, header in enumerate(column_headers):
             ch_index[header] = index;
 
@@ -64,7 +74,7 @@ def parseCPU(path):
         for i, line in enumerate(data[1:]):
             vals = line.split(",")
 
-            if len(vals) < 4:
+            if len(vals) < l:
                 continue
 
             cpu = int(vals[ch_index["CPU"]])

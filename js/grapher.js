@@ -101,7 +101,7 @@ function Graph(div_id){
 		if(index < this.graphs.length){
 			return this.graphs[index];
 		}
-		return false;
+		return -1;
 	}
 
 	this.setGUI = function(){
@@ -463,6 +463,11 @@ function sdAbsGraph(div_id, id){
 		this.frames = Stardust.mark.create(Stardust.mark.rect(), this.platform);
 		this.frame_dim = [];
 		this.frames.attr("p1", d => d.p1).attr("p2", d => d.p2).attr("color", [255, 255, 255, 1]);
+
+		// Set up background for graph only
+		this.bg = Stardust.mark.create(Stardust.mark.rect(), this.platform);
+		this.bg.attr("p1", d => d.p1).attr("p2", d => d.p2);
+		this.bg_color = [255, 255, 255, 1];
 	}
 
 	this.setGraphMargin = function(top, right, bottom, left){
@@ -521,7 +526,7 @@ function sdLine(div_id, id){
 		this.dataset = this.dataset == undefined ? [] : this.dataset;
 		this.datasize = this.datasize == undefined ? 0 : this.datasize;
 		// This determines the resolution of the graph shown on screen, represent how many data points can be shown at once.
-		this.resolution = this.resolution == undefined ? 70000 : this.resolution; 
+		this.resolution = this.resolution == undefined ? 30000 : this.resolution; 
 
 		// some prop
 		this.shrinkY = this.shrinkY == undefined ? true : this.shrinkY;
@@ -541,6 +546,8 @@ function sdLine(div_id, id){
 		// Set up white blocks for blocking excess graph
 		this.frames = this.super.frames;
 		this.frame_dim = this.super.frame_dim;
+		this.bg = this.super.bg;
+		this.bg_color = this.bg_color == undefined ? this.super.bg_color : this.bg_color;
 
 		this.setGraphMargin(this.grapharea.top, this.grapharea.right, this.grapharea.bottom, this.grapharea.left);
 
@@ -586,7 +593,7 @@ function sdLine(div_id, id){
 
 	this.addSeriesDataSet = function(name, dataset){
     	for(var i = 0; i < dataset.length; i++){
-    		if(dataset[i].x != null && dataset[i].y != null && dataset[i].proc != null){
+    		if(dataset[i].x != null && dataset[i].y != null){
     			this.addData(name, dataset[i].x, dataset[i].y, dataset[i].proc);
     		}else{
     			return false;
@@ -795,6 +802,9 @@ function sdLine(div_id, id){
 	this.renderGraph = function(){
 		this.platform.clear();
 
+		// Set bg
+		this.bg.data([{p1:[0, 0], p2:[this.width, this.height]}]).attr("color", this.clrArrToDecimal(this.bg_color)).render();
+
 		// Render axis
 		this.renderXAxis();
 		this.renderYAxis();
@@ -910,6 +920,8 @@ function sdGantt(div_id, id){
 		// Set up white blocks for blocking excess graph
 		this.frames = this.super.frames;
 		this.frame_dim = this.super.frame_dim;
+		this.bg = this.super.bg;
+		this.bg_color = this.super.bg_color;
 
 		this.setGraphMargin(this.grapharea.top, this.grapharea.right, this.grapharea.bottom, this.grapharea.left);
 
@@ -951,7 +963,7 @@ function sdGantt(div_id, id){
 	}
 
 	this.addDataSet = function(dataset){
-    	for(i = 0; i < dataset.length; i++){
+    	for(var i = 0; i < dataset.length; i++){
     		d = dataset[i];
     		if(d.category != null && d.pid != null && d.start != null && d.end != null && d.pname != null){
     			this.addData(d.category, d.pid, d.pname, d.start, d.end);
@@ -1116,6 +1128,9 @@ function sdGantt(div_id, id){
 
 	this.renderGraph = function(){
 		this.platform.clear();
+
+		// Set bg
+		this.bg.data([{p1:[0, 0], p2:[this.width, this.height]}]).attr("color", this.clrArrToDecimal(this.bg_color)).render();
 
 		// Render axis
 		this.renderXAxis();
