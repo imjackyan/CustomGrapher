@@ -320,6 +320,9 @@ function Graph(div_id){
 		if (!this.initialized) {
 			this.initialized = true;
 			this.resetZoom();
+			this.graphs.forEach((g)=>{
+				if(g.setGUI) g.setGUI();
+			});
 		}
 	}
 
@@ -425,6 +428,10 @@ function sdAbsGraph(div_id, id){
 		this.interact_svg = d3.select("#"+this.div_id).append("svg").attr("id", "interact-svg-" + this.id)
 			.attr("width", this.width).attr("height", this.height)
 			.style("position", "absolute").style("top", 0).style("left", 0).style("z-index", 900);
+		this.gui = d3.select("#"+this.div_id).append("div").style({
+			"z-index": "998", "top" : "0", "left": "0", "height" : "0px", "width": "0px",
+			"position": "absolute"
+		})
 
 		// Properties
 		this.colors = [
@@ -522,6 +529,7 @@ function sdLine(div_id, id){
 		this.platform = this.super.platform;
 		this.svg = this.super.svg;
 		this.interact_svg = this.super.interact_svg;
+		this.gui = this.super.gui;
 
 		this.dataset = this.dataset == undefined ? [] : this.dataset;
 		this.datasize = this.datasize == undefined ? 0 : this.datasize;
@@ -639,6 +647,7 @@ function sdLine(div_id, id){
 			this.xScale.domain(xdomain)
 		});
 		this.renderGraph();
+		// this.updateGraph();
 
 		if(this.mouse_g && d3.event && d3.event.sourceEvent){
 			var pt = {x:d3.event.sourceEvent.layerX, y:d3.event.sourceEvent.layerY};
@@ -647,6 +656,31 @@ function sdLine(div_id, id){
 				this.renderTooltip(pt);
 			}
 		}
+	}
+
+	this.setGUI = function(){
+		// Setting legends
+		this.legends_div = this.gui.append("ul").attr("class", "legends").style({
+			"position": "absolute", 
+			"left": (this.grapharea.left + this.grapharea.width + "px"),
+			"top": (this.grapharea.top + "px"),
+			"max-width": (this.grapharea.right + "px")
+		});
+		this.legends = this.legends_div.selectAll(".legend").data(this.dataset).enter().append("li")
+			.attr("class", "legend");
+		this.legends.append("div").attr("class", "square").style("background", (d, i) => this.arrToRGB(this.colors[i]));
+		this.legends.append("span").html((d) => " "+d.series);
+		// this.legends.append("div").attr("class", "hint").style({
+		// 	"position": "absolute", "right":"100%"
+		// }).html((d) => d.series);
+		this.legends.on("click", (d, i)=>{
+			d.hidden = d.hidden ? false : true;
+			this.legends[0][i].style.color = d.hidden ? "grey" : "black";
+			var clr = this.arrToRGB(this.colors[i], d.hidden ? 0.5 : 1);
+			this.legends[0][i].children[0].style.background = clr;
+			this.renderGraph();
+		});
+		
 	}
 
 	this.setMouseEffects = function(){
@@ -686,8 +720,8 @@ function sdLine(div_id, id){
 	this.onMouseover = function(){
 		var pt = {x:d3.event.layerX, y:d3.event.layerX};
 		this.mouse_g_line.attr("opacity", 1);
-		this.mouse_g_node.attr("opacity", 1);
-		this.mouse_g_tooltip.style("display", "block");
+		this.mouse_g_node.attr("opacity", (d) => d.hidden ? 0 : 1);
+		this.mouse_g_tooltip.style("display", (d) => d.hidden ? "none" : "block");
 	}
 	this.onMouseleave = function(){
 		this.mouse_g_line.attr("opacity", 0);
@@ -709,21 +743,24 @@ function sdLine(div_id, id){
 	this.renderTooltip = function(mouse_pos){
 		if(this.mouse_g_node){
 			this.mouse_g_node.attr("transform", (d, i)=>{
-				var x_index = this.xScale.invert(mouse_pos.x);
-				x_index = this.bisect(d.data, x_index);
+				if(!d.hidden){					
+					var x_index = this.xScale.invert(mouse_pos.x);
+					x_index = this.bisect(d.data, x_index);
 
-				x_index = x_index >= d.data.length ? d.data.length-1 : x_index;
-				var v = d.data[x_index];
-				var pt = {x:this.xScale(v.x), y:this.yScale(v.y)};
+					x_index = x_index >= d.data.length ? d.data.length-1 : x_index;
+					var v = d.data[x_index];
+					var pt = {x:this.xScale(v.x), y:this.yScale(v.y)};
 
-				if(pt.x > this.grapharea.left + this.grapharea.width || pt.x < this.grapharea.left){
-					d.hovering = false;
-					return "translate(-10,-10)";
+					if(pt.x > this.grapharea.left + this.grapharea.width || pt.x < this.grapharea.left){
+						d.hovering = false;
+						return "translate(-10,-10)";
+					}
+					d.hovering = pt;
+					d.hovering.index = x_index;
+					d.hovering.data = v;
+					return "translate("+pt.x+","+pt.y+")";
 				}
-				d.hovering = pt;
-				d.hovering.index = x_index;
-				d.hovering.data = v;
-				return "translate("+pt.x+","+pt.y+")";
+				return "translate(0,0)";
 			});
 		}
 		if(this.mouse_g_tooltip){
@@ -757,7 +794,7 @@ function sdLine(div_id, id){
 				}
 			}).style("background", (d, i)=>{
 				return this.arrToRGB(this.colors[i], 0.7);
-			}).style("display",(d) => d.hovering ? "block" : "none");
+			}).style("display",(d) => (d.hovering && !d.hidden) ? "block" : "none");
 		}
 	}
 
@@ -812,8 +849,10 @@ function sdLine(div_id, id){
 		// Render actual graph with data
 		var stime = Date.now();
 		this.dataset.forEach((v, i)=>{
-			v.sdVars.lines.attr("width", this.graphprop.strokewidth).data(this.formatDataset(v.data, this.graphprop.xdomain, this.resolution));
-			v.sdVars.lines.render();
+			if(!v.hidden){
+				v.sdVars.lines.attr("width", this.graphprop.strokewidth).data(this.formatDataset(v.data, this.graphprop.xdomain, this.resolution));
+				v.sdVars.lines.render();
+			}
 		});
 		print("graph render: " + (Date.now() - stime) + "ms");
 
@@ -849,14 +888,18 @@ function sdLine(div_id, id){
 			var max = this.dataprop.min;
 			var min = this.dataprop.max;
 			this.dataset.forEach((v, i) => {
-				var start_index = this.bisect(v.data, this.graphprop.xdomain[0]);
-				start_index = start_index == 0 ? start_index : start_index - 1;
-				var end_index = this.bisect(v.data, this.graphprop.xdomain[1]);
-				for(var i = start_index; i < end_index; i++){
-					max = v.data[i].y > max ? v.data[i].y : max; 
-					min = v.data[i].y < min ? v.data[i].y : min;
+				if(!v.hidden){					
+					var start_index = this.bisect(v.data, this.graphprop.xdomain[0]);
+					start_index = start_index == 0 ? start_index : start_index - 1;
+					var end_index = this.bisect(v.data, this.graphprop.xdomain[1]);
+					for(var i = start_index; i < end_index; i++){
+						max = v.data[i].y > max ? v.data[i].y : max; 
+						min = v.data[i].y < min ? v.data[i].y : min;
+					}
 				}
 			});
+			max = Math.max(min, max);
+			min = Math.min(min, max);
 			var delta = max - min;
 			ydomain = [min - delta * yPadding, max + delta * yPadding];
 		}
@@ -991,7 +1034,7 @@ function sdGantt(div_id, id){
 						return [this.xScale(d.start), this.yScale(this.categories[i])];
 					})
 					.attr("p2", (d, j) => {
-						return [this.xScale(d.end), this.yScale(this.categories[i]) + (this.grapharea.height / this.categories.length)];				
+						return [this.xScale(d.end), this.yScale(this.categories[i]) + (this.grapharea.height / this.num_visiblerows)];				
 					})
 			}
 		});
@@ -1006,7 +1049,8 @@ function sdGantt(div_id, id){
 		this.dataset.forEach((v, i)=>{
 			this.xScale.domain(xdomain)
 		});
-		this.renderGraph();
+		this.renderGraph();		
+		// this.updateGraph();
 
 		if(this.mouse_g && d3.event && d3.event.sourceEvent){
 			var pt = {x:d3.event.sourceEvent.layerX, y:d3.event.sourceEvent.layerY};
@@ -1066,10 +1110,14 @@ function sdGantt(div_id, id){
 
 	this.renderTooltip = function(mouse_pos){
 		if(this.mouse_g){		
-			var h = this.grapharea.height / this.dataset.length;
+			var h = this.grapharea.height / this.num_visiblerows;
+			var row = 0;
 			for(var i = 0; i < this.dataset.length; i++) {
 				var d = this.dataset[i];
-				if(mouse_pos.y > i * h && mouse_pos.y < (i+1)*h){
+				if(d.hidden){
+					continue;
+				}
+				if(mouse_pos.y > row * h && mouse_pos.y < (row+1)*h){
 					var x_index = this.xScale.invert(mouse_pos.x);
 					x_index = this.bisect(d.data, x_index);
 					x_index -= 1;
@@ -1082,13 +1130,14 @@ function sdGantt(div_id, id){
 							var pt = {start:this.xScale(v.start), end:this.xScale(v.end)};
 							if(mouse_pos.x > pt.start && mouse_pos.x < pt.end){
 								this.hovering = pt;
-								this.hovering.top = i*h;
-								this.hovering.bottom = (i+1)*h;
+								this.hovering.top = row*h;
+								this.hovering.bottom = (row+1)*h;
 								this.hovering.data = v;
 							}
 						}
 					}
 				}
+				row++;
 			}
 		}
 
@@ -1129,6 +1178,9 @@ function sdGantt(div_id, id){
 	this.renderGraph = function(){
 		this.platform.clear();
 
+		// For num of shown categories
+		this.num_visiblerows = d3.sum(this.dataset.map((d)=> d.hidden ? 0 : 1));
+
 		// Set bg
 		this.bg.data([{p1:[0, 0], p2:[this.width, this.height]}]).attr("color", this.clrArrToDecimal(this.bg_color)).render();
 
@@ -1138,8 +1190,10 @@ function sdGantt(div_id, id){
 
 		// Render actual graph with data
 		this.dataset.forEach((v, i)=>{
-			v.sdVars.rects.data(v.data);
-			v.sdVars.rects.render();
+			if(!v.hidden){
+				v.sdVars.rects.data(v.data);
+				v.sdVars.rects.render();
+			}
 		});
 
 		// Set blocking frames
@@ -1165,7 +1219,7 @@ function sdGantt(div_id, id){
 
 	this.renderYAxis = function(){
 		this.yScale
-			.domain(this.categories)
+			.domain(this.dataset.filter((d)=> !d.hidden).map((d)=> d.category))
 			.rangeBands([this.grapharea.top, this.grapharea.top + this.grapharea.height]);
 		if(this.hasAxis.y){
 			this.yAxisGroup.call(this.yAxis)
