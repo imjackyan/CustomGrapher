@@ -378,19 +378,7 @@ function Graph(div_id){
 			});
 		}
 
-		var h = this.grapharea.height / this.graphs.length
-		this.graph_divs.style("height", (d,i)=>{
-			this.graphs[i].plotoffset.y = (i == 0 ? 0 : this.grapharea.top) + i * h;
-			var ret;
-			if (i == 0){
-				ret = this.grapharea.top + h;
-			}else if(i == this.graphs.length - 1){
-				ret = h + this.grapharea.bottom;
-			}else{				
-				ret = h;
-			}
-			return ret + "px";
-		});
+		this.updateVerticalFlex();
 		this.resizeGraphs();
 
 		// Set titles
@@ -398,7 +386,36 @@ function Graph(div_id){
 		this.div_xtitle.style("height", bottom + "px")
 	}
 
+	this.updateVerticalFlex = function(/**/){
+		var args = arguments;
+		this.flex = this.flex == undefined ? [] : this.flex;
+		for(var i=0; i< this.graphs.length; i++){
+	        this.flex[i] = args[i] == undefined ? (this.flex[i] == undefined ? 1 : this.flex[i]) : args[i];
+	    }
+
+	    var h = this.grapharea.height / d3.sum(this.flex);
+	    var cur_yoffset = 0;
+		this.graph_divs.style("height", (d,i)=>{
+			this.graphs[i].plotoffset.y = cur_yoffset;
+			var ret;
+			if (i == 0){
+				ret = this.grapharea.top + (this.flex[i] * h);
+			}else if(i == this.graphs.length - 1){
+				ret = (this.flex[i] * h) + this.grapharea.bottom;
+			}else{				
+				ret = (this.flex[i] * h);
+			}
+			cur_yoffset += ret;
+			return ret + "px";
+		});
+	}
+
 	this.resizeGraphs = function(){
+		this.width = this.div.getBoundingClientRect().width;
+		this.height = this.div.getBoundingClientRect().height;
+		this.grapharea.height = this.height - this.grapharea.top - this.grapharea.bottom;
+		this.updateVerticalFlex();
+
 		this.graphs.forEach((g, i) => {
 			var id = this.div_id + "-" + i;
 			g.resizeGraph(id, i);
