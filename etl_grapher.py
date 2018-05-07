@@ -10,7 +10,6 @@ parser.add_argument('-dma', type=str, default="dmaPackets_Complete.csv", help="D
 
 args = parser.parse_args()
 
-
 def parseDMA(path):
     gantts = {}
     with open(path, "r") as f:
@@ -42,10 +41,12 @@ def parseDMA(path):
             engine = ""
             # engine = vals[ch_index["engineType"]] +" "
             engine += vals[ch_index["nodeOrdinalFriendlyName"]]
+
+            pid = int(vals[ch_index["pid"]]);
             
             gantts[adapter].append(dict(
                 category = engine,
-                pid = int(vals[ch_index["pid"]]),
+                pid = pid,
                 start = float(vals[ch_index["timeStart"]]),
                 end = float(vals[ch_index["timeEnd"]]),
                 pname = vals[ch_index["processName"]]
@@ -111,16 +112,16 @@ def main():
         return
     
     lines = parseCPU(args.cpu)
-    gantt = parseDMA(args.dma)
+    gantts = parseDMA(args.dma)
 
-    if len(lines) == 0 or len(gantt) == 0:
+    if len(lines) == 0 or len(gantts) == 0:
         print("[FAILED] Failed to parse")
         return
 
 
     t = Template(open(args.template).read())
     html = t.render(template={
-        "gantt":gantt,
+        "gantt":gantts,
         "lines":lines
     })
 

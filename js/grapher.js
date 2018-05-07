@@ -388,6 +388,10 @@ function Graph(div_id){
 
 	this.updateVerticalFlex = function(/**/){
 		var args = arguments;
+		if (args.length == 1 && args[0] instanceof Array){ // if passed in an array
+			args = args[0]; 
+		} // else args are passed as infinite args
+
 		this.flex = this.flex == undefined ? [] : this.flex;
 		for(var i=0; i< this.graphs.length; i++){
 	        this.flex[i] = args[i] == undefined ? (this.flex[i] == undefined ? 1 : this.flex[i]) : args[i];
@@ -583,6 +587,8 @@ function sdLine(div_id, id){
 		this.yAxis = d3.svg.axis().scale(this.yScale).orient("left");
 		this.xAxisGroup = this.svg.append("g").attr("class", "x axis");
 		this.yAxisGroup = this.svg.append("g").attr("class", "y axis");
+
+		this.setGUI();
 	}
 
 	this.addData = function(series, x, y, proc){
@@ -677,11 +683,12 @@ function sdLine(div_id, id){
 
 	this.setGUI = function(){
 		// Setting legends
+		this.gui.html(""); // clear gui
 		this.legends_div = this.gui.append("ul").attr("class", "legends").style({
 			"position": "absolute", 
-			"left": (this.grapharea.left + this.grapharea.width + "px"),
+			"left": (this.grapharea.left + this.grapharea.width + 5 + "px"),
 			"top": (this.grapharea.top + "px"),
-			"max-width": (this.grapharea.right + "px")
+			"max-width": (this.grapharea.right - 5 + "px")
 		});
 		this.legends_cont = this.legends_div.selectAll(".legend").data(this.dataset).enter().append("li")
 			.attr("class", "");
@@ -994,6 +1001,8 @@ function sdGantt(div_id, id){
 		this.yAxis = d3.svg.axis().scale(this.yScale).orient("left");
 		this.xAxisGroup = this.svg.append("g").attr("class", "x axis");
 		this.yAxisGroup = this.svg.append("g").attr("class", "y axis");
+
+		this.setGUI();
 	}
 
 	this.addData = function(category, pid, pname, start, end){
@@ -1088,11 +1097,12 @@ function sdGantt(div_id, id){
 
 	this.setGUI = function(){
 		// Setting legends
+		this.gui.html(""); // clear gui
 		this.legends_div = this.gui.append("ul").attr("class", "legends").style({
 			"position": "absolute", 
-			"left": (this.grapharea.left + this.grapharea.width + "px"),
+			"left": (this.grapharea.left + this.grapharea.width + 5 + "px"),
 			"top": (this.grapharea.top + "px"),
-			"max-width": (this.grapharea.right + "px")
+			"max-width": (this.grapharea.right - 5 + "px")
 		});
 		this.legends_cont = this.legends_div.selectAll(".legend").data(Object.keys(this.PIDs)).enter().append("li")
 			.attr("class", "");

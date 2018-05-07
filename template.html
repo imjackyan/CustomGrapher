@@ -36,6 +36,27 @@
 		}
 
 
+		// set flex
+		var flex = [];
+		var gantt_sum = 0;
+		var line_sum = 0;
+		t.graphs.forEach((g, i)=>{
+			if(g instanceof sdGantt){
+				gantt_sum += g.categories.length;
+			}else if(g instanceof sdLine){
+				line_sum ++;
+			}
+		});
+		t.graphs.forEach((g, i)=>{
+			if(g instanceof sdLine){
+				flex[i] = gantt_sum;
+			}else if(g instanceof sdGantt){
+				flex[i] = g.categories.length;
+			}
+		});
+
+
+		t.updateVerticalFlex(flex);
 		t.setGraphMargin(100,100,100,100);
 		t.updateGraphs();
 		t.setXTitle("Time (ms)");
