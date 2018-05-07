@@ -666,18 +666,19 @@ function sdLine(div_id, id){
 			"top": (this.grapharea.top + "px"),
 			"max-width": (this.grapharea.right + "px")
 		});
-		this.legends = this.legends_div.selectAll(".legend").data(this.dataset).enter().append("li")
-			.attr("class", "legend");
+		this.legends_cont = this.legends_div.selectAll(".legend").data(this.dataset).enter().append("li")
+			.attr("class", "");
+		this.legends = this.legends_cont.append("div").attr("class", "legend");
 		this.legends.append("div").attr("class", "square").style("background", (d, i) => this.arrToRGB(this.colors[i]));
 		this.legends.append("span").html((d) => " "+d.series);
-		// this.legends.append("div").attr("class", "hint").style({
-		// 	"position": "absolute", "right":"100%"
-		// }).html((d) => d.series);
+		
+		this.legends_hints = this.legends_cont.append("div").attr("class", "hint").html((d)=>d.series);
+
 		this.legends.on("click", (d, i)=>{
 			d.hidden = d.hidden ? false : true;
-			this.legends[0][i].style.color = d.hidden ? "grey" : "black";
+			this.legends.select("span").filter((v,j) => j === i).style("color", d.hidden ? "grey" : "black");
 			var clr = this.arrToRGB(this.colors[i], d.hidden ? 0.5 : 1);
-			this.legends[0][i].children[0].style.background = clr;
+			this.legends.select(".square").filter((v,j) => j === i).style("background", clr);
 			this.renderGraph();
 		});
 		
