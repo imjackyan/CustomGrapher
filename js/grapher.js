@@ -946,11 +946,12 @@ function sdGantt(div_id, id){
 		this.platform = this.super.platform;
 		this.svg = this.super.svg;
 		this.interact_svg = this.super.interact_svg;
+		this.gui = this.super.gui;
 
 		this.dataset = this.dataset == undefined ? [] : this.dataset;
 		this.datasize = this.datasize == undefined ? 0 : this.datasize;
 		this.categories = this.categories == undefined ? [] : this.categories;
-		this.pidToColor = this.pidToColor == undefined ? {} : this.pidToColor;
+		this.PIDs = this.PIDs == undefined ? {} : this.PIDs;
 
 		// some prop		
 		this.shrinkY = this.shrinkY == undefined ? true : this.shrinkY;
@@ -997,8 +998,12 @@ function sdGantt(div_id, id){
 			end:end
 		})
 
-		if (!this.pidToColor[pid]){
-			this.pidToColor[pid] = Object.keys(this.pidToColor).length;
+		if (!this.PIDs[pid]){
+			this.PIDs[pid] = {
+				lname: pname + " - " + pid,
+				pname: pname,
+				clrIndex: Object.keys(this.PIDs).length
+			};
 		}
 
 		this.dataprop.start = (this.dataprop.start == undefined || start < this.dataprop.start) ? start : this.dataprop.start;
@@ -1030,12 +1035,14 @@ function sdGantt(div_id, id){
 				v.sdVars.rectSpec = Stardust.mark.rect();
 				v.sdVars.rects = Stardust.mark.create(v.sdVars.rectSpec, this.platform);
 
-				v.sdVars.rects.attr("color", (d, j) => this.clrArrToDecimal(this.colors[this.pidToColor[d.pid]]))
+				v.sdVars.rects.attr("color", (d, j) => this.clrArrToDecimal(this.colors[this.PIDs[d.pid].clrIndex]))
 					.attr("p1", (d, j) => {
-						return [this.xScale(d.start), this.yScale(this.categories[i])];
+						if(!d.hidden) return [this.xScale(d.start), this.yScale(this.categories[i])];
+						return [0,0];
 					})
 					.attr("p2", (d, j) => {
-						return [this.xScale(d.end), this.yScale(this.categories[i]) + (this.grapharea.height / this.num_visiblerows)];				
+						if(!d.hidden) return [this.xScale(d.end), this.yScale(this.categories[i]) + (this.grapharea.height / this.num_visiblerows)];
+						return [0,0];		
 					})
 			}
 		});
@@ -1060,6 +1067,45 @@ function sdGantt(div_id, id){
 				this.renderTooltip(pt);
 			}
 		}
+	}
+
+	this.setGUI = function(){
+		// Setting legends
+		this.legends_div = this.gui.append("ul").attr("class", "legends").style({
+			"position": "absolute", 
+			"left": (this.grapharea.left + this.grapharea.width + "px"),
+			"top": (this.grapharea.top + "px"),
+			"max-width": (this.grapharea.right + "px")
+		});
+		this.legends_cont = this.legends_div.selectAll(".legend").data(Object.keys(this.PIDs)).enter().append("li")
+			.attr("class", "");
+		this.legends = this.legends_cont.append("div").attr("class", "legend");
+		this.legends.append("div").attr("class", "square").style("background", (d, i) => this.arrToRGB(this.colors[this.PIDs[d].clrIndex]));
+		this.legends.append("span").html((d) => " "+ this.PIDs[d].lname);
+		
+		this.legends_hints = this.legends_cont.append("div").attr("class", "hint").html((d)=> this.PIDs[d].lname);
+
+		this.legends.on("click", (d, i)=>{
+			this.PIDs[d].hidden = this.PIDs[d].hidden ? false : true;
+
+			this.legends.select("span").filter((v,j) => j === i).style("color", this.PIDs[d].hidden ? "grey" : "black");
+			var clr = this.arrToRGB(this.colors[this.PIDs[d].clrIndex], this.PIDs[d].hidden ? 0.5 : 1);
+			this.legends.select(".square").filter((v,j) => j === i).style("background", clr);
+
+			// Hide all rects that are if this PID
+			var pid = parseInt(d);
+			this.dataset.forEach((v, j) => {
+				v.data.forEach((r, k) => {
+					if(this.PIDs[r.pid].hidden){
+						r.hidden = true;
+					}else{
+						r.hidden = false;
+					}
+				});
+			});
+
+			this.renderGraph();
+		});		
 	}
 
 	this.setMouseEffects = function(){
