@@ -829,7 +829,7 @@ function sdLine(div_id, id){
 		var start = this.bisect(data, xdomain[0]) - 1;
 		var end = this.bisect(data, xdomain[1]) + 10;
 		start = start < 0 ? 0 : start;
-		end = end >= data.length ? data.length - 1 : end;
+		end = end >= data.length ? data.length : end;
 		var delta = end - start;
 
 		// scale must be integer that is >= 1
@@ -841,17 +841,24 @@ function sdLine(div_id, id){
 
 		// get the rolling avg array
 		var d = [];
+		var i;
 		for (i = start; i < end - scale; i+=scale){
 			d.push(data.slice(i, i+scale));
 		}
-		d = d.map((group) => {
+		if(i < end){
+			d.push(data.slice(i, end));
+		}
+
+		d = d.map((group, j) => {
+			if(j == d.length - 1){
+				return group[group.length - 1];
+			}
 			var index = 0;
 			for(var i = 1; i < group.length; i++){
 				index = group[i].y > group[index].y ? i : index; 
 			}
 			return group[index];
 		});
-		
 
 		for (i = 0; i < d.length - 1; i++){
 			d[i] = [d[i], d[i+1]]
