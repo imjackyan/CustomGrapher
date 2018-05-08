@@ -78,7 +78,7 @@ ul{
 	border-radius: 3px;
 	overflow: hidden;
 	text-overflow: ellipsis;
-	max-width: 150px; white-space: nowrap;
+	max-width: 150px; white-space: nowrap; z-index: 980;
 }
 
 .cus-gantt-tooltip{
@@ -107,6 +107,11 @@ ul{
 	top: 100%;
 	left: 0;
 }
+.cus-x-tooltip{
+	position: absolute; background: rgba(0,0,0,0.75); color: white; padding: 0px 5px; border-radius: 5px;
+}
+
+
 @keyframes whitepulse {
     0% {background-color: rgba(255,255,255,0);}
     50% {background-color: rgba(255,255,255,0.5);}

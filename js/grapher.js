@@ -178,15 +178,25 @@ function Graph(div_id){
 		this.interact_svg = this.main_cont.append("svg").attr("class", "mouse-over-effects")
 			.attr("width", "100%").attr("height", "100%")
 			.style("position", "absolute").style("top", 0).style("left", 0).style("z-index", 900);
+		this.interact_div = this.main_cont.append("div").attr("class", "mouse-over-effects")
+			.style("width", "100%").style("height", "100%")
+			.style("position", "absolute").style("top", 0).style("left", 0).style("z-index", 890);
 
 		this.mouse_g = this.interact_svg.append("svg").append("g");
+		this.mouse_g_line = this.mouse_g.append("line").attr("x2", 0).attr("y2", this.grapharea.height)
+			.attr("stroke", "black").attr("stroke-width", 1).attr("opacity", 0);
+		this.graphs.forEach((g)=>{if (g.showTipLine != undefined) g.showTipLine = false;});
 		this.mouse_g_drag_rect = this.mouse_g.append("svg:rect").attr("opacity", 0)
 			.attr("height", "100%")
 			.attr("width", "100%");
 
+		this.mouse_g_div = this.interact_div.append("div").style("position", "absolute");
+		this.mouse_g_xtooltip = this.mouse_g_div.append("div").attr("class", "cus-x-tooltip");
+
 		this.mouse_g_rect = this.interact_svg.append("svg:rect").attr("opacity", 0)
 			.attr("height", "100%")
 			.attr("width", "100%");
+
 
 		this.mousing_over = -1; // indicates which graph it's currently hovering
 		this.mouse_g_rect
@@ -196,6 +206,7 @@ function Graph(div_id){
 			// Checking mouseover/mouseleave
 			var inGraph = false;
 
+			// Mouseover
 			this.graphs.forEach((g, i) => {
 				if(this.isWithinGraph(i, pt)){
 					if(this.mousing_over != -1) this.graphs[this.mousing_over].onMouseleave();
@@ -204,7 +215,22 @@ function Graph(div_id){
 					inGraph = true;
 				}
 			});
+			if(inGraph){
+				this.mouse_g_line.attr("opacity", "1").attr("transform", "translate("+pt.x+","+this.grapharea.top+")").attr("y2", this.grapharea.height);
+				if(this.mouse_g_xtooltip){
+					this.mouse_g_xtooltip
+						.style("left", () => {return pt.x + "px"})
+						.style("top", () => {return (this.grapharea.top + this.grapharea.height + 5 + "px")})
+						.html(()=>{
+							if(this.graphs.length > 0){
+								var x = this.graphs[0].xScale.invert(pt.x);
+								return x;
+							}
+						})
+				}
+			}
 
+			// Mouseleave
 			if(!inGraph && this.mousing_over != -1){
 				this.graphs[this.mousing_over].onMouseleave();
 				this.mousing_over = -1;
@@ -571,6 +597,7 @@ function sdLine(div_id, id){
 		this.graphprop = this.graphprop == undefined ? this.super.graphprop : this.graphprop;
 		this.colors = this.super.colors;
 		this.hasAxis = this.hasAxis == undefined ? this.super.hasAxis : this.hasAxis;
+		this.showTipLine = this.showTipLine == undefined ? true : this.showTipLine;
 
 		// Set up white blocks for blocking excess graph
 		this.frames = this.super.frames;
@@ -744,7 +771,7 @@ function sdLine(div_id, id){
 
 	this.onMouseover = function(){
 		var pt = {x:d3.event.layerX, y:d3.event.layerX};
-		this.mouse_g_line.attr("opacity", 1);
+		if(this.showTipLine) this.mouse_g_line.attr("opacity", 1);
 		this.mouse_g_node.attr("opacity", (d) => d.hidden ? 0 : 1);
 		this.mouse_g_tooltip.style("display", (d) => d.hidden ? "none" : "block");
 	}
@@ -755,7 +782,7 @@ function sdLine(div_id, id){
 	}
 	this.onMousemove = function(pt){
 		pt = pt == undefined ? {x:d3.event.layerX, y:d3.event.layerY} : pt;
-		this.mouse_g_line.attr("transform", "translate(" + (pt.x) +","+this.grapharea.top+")")
+		if(this.showTipLine) this.mouse_g_line.attr("transform", "translate(" + (pt.x) +","+this.grapharea.top+")")
 		this.renderTooltip(pt);
 	}
 
